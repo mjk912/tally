@@ -1,0 +1,1591 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#20262a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>tally</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+</style>
+<style>
+/* Layout: App-Bildschirm. Mobil: schmale Kopfzeile · Bild (größte Fläche) · eine Ergebniszeile · kompaktes Dock mit 4 Arbeitsschritten. Bearbeiten öffnet das Bild im Vollbild mit Plus/Minus-Werkzeug. Ab 900px: Bild links, Dock rechts. */
+:root{
+  --bg:#eef0ec; --panel:#f8f9f6; --ink:#1d2421; --muted:#5b655f; --line:#d3d8d2;
+  --grain:#b9851c; --grain-soft:#f3e6c4; --mark:#1f7a5a; --clump:#c2512b; --small:#4f4fd0; --off:#8a918d; --danger:#b3261e;
+  --stage:#20262a;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --panel:#1c2220; --ink:#e7ebe6; --muted:#9aa49e; --line:#2f3733;
+  --grain:#e2b350; --grain-soft:#3a3120; --mark:#4cc79a; --clump:#ee8a62; --small:#9c9ef7; --off:#6f7772; --danger:#ff8a80; --stage:#0d1012; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --panel:#1c2220; --ink:#e7ebe6; --muted:#9aa49e; --line:#2f3733;
+  --grain:#e2b350; --grain-soft:#3a3120; --mark:#4cc79a; --clump:#ee8a62; --small:#9c9ef7; --off:#6f7772; --danger:#ff8a80; --stage:#0d1012; color-scheme:dark}
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);overflow:hidden;
+  padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));padding-block:0}
+.app{height:100%;display:flex;flex-direction:column;gap:6px;max-width:1400px;margin:0 auto;padding-block:6px}
+
+button,.btn{font:700 14px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  border-radius:10px;min-height:42px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  -webkit-tap-highlight-color:transparent;user-select:none;touch-action:manipulation}
+button:hover,.btn:hover{border-color:var(--grain)}
+button:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:3px solid var(--grain);outline-offset:2px}
+svg.i{width:20px;height:20px;flex:none}
+.primary{background:var(--grain);border-color:var(--grain);color:#1a1408}
+
+/* Kopfzeile */
+.top{display:flex;align-items:center;gap:6px;min-height:42px}
+h1{font:800 21px/1 var(--f-display);letter-spacing:-.02em;margin:0;white-space:nowrap}
+h1 span{color:var(--grain)}
+.srcline{flex:1;min-width:0;font-size:12px;color:var(--muted);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.iconbtn{width:42px;padding:0;font:700 17px var(--f-display)}
+.addbtn{background:var(--grain);border-color:var(--grain);color:#1a1408}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.menuwrap{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:6px;display:flex;flex-direction:column;min-width:210px;box-shadow:0 12px 32px rgba(0,0,0,.25)}
+.menu .btn,.menu button{justify-content:flex-start;border:0;background:transparent;font-weight:400;min-height:48px;gap:12px;font-size:15px}
+.menu .btn:hover,.menu button:hover{background:var(--grain-soft)}
+
+/* Bühne */
+.stage{flex:1;min-height:150px;background:var(--stage);border-radius:12px;position:relative;overflow:hidden;touch-action:none;cursor:zoom-in}
+.stage canvas{position:absolute;left:0;top:0;transform-origin:0 0;display:block}
+#ovc{pointer-events:none}
+.ov{position:absolute;z-index:2;background:rgba(15,18,20,.82);color:#eef1ee;border:0;border-radius:9px;backdrop-filter:blur(6px)}
+.view{left:6px;top:6px;display:flex;padding:3px;gap:2px}
+.view button{min-height:30px;padding:0 9px;font-size:12.5px;border:0;background:transparent;color:#cfd5d1;border-radius:7px}
+.view button[aria-pressed=true]{background:#f3e6c4;color:#1a1408}
+.editbtn{right:6px;bottom:6px;min-height:38px;font-size:13.5px;padding:0 12px}
+.editbtn:hover{border:0;background:rgba(15,18,20,.9)}
+.zoomreset,.roiclear{min-height:38px;font-size:13px}
+.zoomhint{left:6px;top:6px;font:700 12px var(--f-mono);padding:7px 8px;pointer-events:none}
+.prog{left:50%;top:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 10px;padding:12px 16px;min-width:220px;font-size:14px;font-weight:700;pointer-events:none;z-index:4}
+.prog i{grid-column:1/-1;height:4px;border-radius:2px;background:rgba(255,255,255,.18);overflow:hidden}
+.prog b{display:block;height:100%;width:0;background:#e2b350;transition:width .25s}
+.spin{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.25);border-top-color:#e2b350;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.drop{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;z-index:5;
+  background:rgba(20,24,26,.82);font:700 20px var(--f-display);border:3px dashed var(--grain);border-radius:12px}
+
+/* Vollbild-Bearbeiten */
+.stage.full{position:fixed;inset:0;z-index:40;border-radius:0;cursor:crosshair}
+.stage.full .view{top:calc(6px + env(safe-area-inset-top,0px));left:calc(6px + env(safe-area-inset-left,0px))}
+.stage.full .editbtn{display:none}
+.stage:not(.full) .editbar,.stage:not(.full) .livecount{display:none}
+.livecount{left:50%;transform:translateX(-50%);top:calc(8px + env(safe-area-inset-top,0px));padding:6px 14px;text-align:center;pointer-events:none}
+.livecount b{font:700 22px/1 var(--f-mono);display:block}
+.livecount span{font-size:11px;color:#b9c0bb}
+.stage.full .zoomhint{top:calc(56px + env(safe-area-inset-top,0px))}
+.editbar{position:absolute;left:0;right:0;bottom:0;z-index:3;display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;
+  background:rgba(15,18,20,.9);
+  padding:10px max(10px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px))}
+.tool{display:flex;border-radius:12px;overflow:hidden;border:1px solid #3a4245}
+.tool button{min-height:56px;min-width:60px;border:0;border-radius:0;background:transparent;color:#dfe4e0;flex-direction:column;gap:0;font-size:12px}
+.tool button b{font:700 26px/1 var(--f-mono);height:26px;display:flex;align-items:center}
+.tool button b svg{width:24px;height:24px}
+.tool button[aria-pressed=true][data-v=roi]{background:#f3e6c4;color:#1a1408}
+.ovrow{position:absolute;left:6px;bottom:6px;z-index:2;display:flex;gap:6px}
+.ovrow .ov{position:static}
+.stage.full .ovrow{bottom:calc(84px + env(safe-area-inset-bottom,0px));left:calc(6px + env(safe-area-inset-left,0px))}
+.tool button+button{border-left:1px solid #3a4245}
+.tool button[aria-pressed=true][data-v=add]{background:var(--grain);color:#1a1408;--tool-bg:var(--grain)}
+.tool button[aria-pressed=true][data-v=remove]{background:#d8dcd9;color:#1a1408;--tool-bg:#d8dcd9}
+.tool button{font-size:11px;line-height:1.15}
+.stage.noroi #roiTool{display:none}
+.edithint{font-size:12.5px;color:#b9c0bb;text-align:center;line-height:1.3;min-width:0}
+.edithint.flash{color:#ffb4a2}
+.editactions{display:flex;gap:6px}
+.editactions button{min-height:56px;background:transparent;color:#eef1ee;border-color:#3a4245}
+.editactions .done{background:#f3e6c4;color:#1a1408;border-color:#f3e6c4}
+@media (max-width:420px){.edithint{display:none}.editbar{grid-template-columns:auto 1fr}.editactions{justify-content:flex-end}}
+
+/* Ergebnis */
+.result{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 10px;min-height:52px}
+.num{display:flex;flex-direction:column;flex:none}
+.label{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.big{font:700 28px/1 var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.mid{font:700 20px/1.1 var(--f-mono);font-variant-numeric:tabular-nums}
+.mid small{font-size:13px;color:var(--muted)}
+.breakdown{flex:1;min-width:0;font-size:12px;color:var(--muted);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.breakdown b{color:var(--ink);font-family:var(--f-mono)}
+.undo{flex:none;width:40px;min-height:40px;padding:0}
+
+/* Dock */
+.dock{background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;max-height:38%;min-height:0;flex:none}
+.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-bottom:1px solid var(--line);flex:none}
+.tabs button{border:0;border-radius:0;background:transparent;min-height:40px;padding:0 2px;font-size:13px;color:var(--muted);border-bottom:3px solid transparent;gap:4px}
+.tabs button i{font:700 11px var(--f-mono);font-style:normal}
+@media (max-width:480px){.tabs button{flex-direction:column;gap:0;min-height:44px;font-size:12.5px;line-height:1.15}}
+.startbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.startbtns .btn{min-height:60px;flex-direction:column;gap:2px;font-size:14px}
+.startbtns .btn svg{width:24px;height:24px}
+.tips{margin:0;padding-left:18px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.linkbtn{border:0;background:transparent;color:var(--grain);min-height:36px;padding:0;justify-content:flex-start;font-size:13.5px}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--grain)}
+.tabs button[aria-selected=true] i{color:var(--grain)}
+.pane{padding:8px 10px 10px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:0}
+.hint{font-size:12.5px;color:var(--muted);margin:0;line-height:1.35}
+.ctl{display:flex;flex-direction:column;gap:0}
+.ctl-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-weight:700;font-size:13.5px}
+.ctl-head output{font:700 14px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--grain)}
+.ctl-row{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:8px;align-items:center}
+.step{padding:0;font:700 22px/1 var(--f-mono);min-height:42px}
+input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);cursor:pointer}
+.ctl .hint{display:none}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;border:0;border-radius:0;min-height:40px;padding:0 6px;font-size:13px;background:transparent}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--grain-soft)}
+.inline{display:flex;align-items:center;gap:10px}.inline>span{font-weight:700;font-size:13.5px;flex:none}.inline .seg{flex:1}
+.field{display:flex;flex-direction:column;gap:2px;min-width:0}
+.field label{font-size:12.5px;font-weight:700}
+.field input{font:500 16px var(--f-body);min-height:42px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-width:0;width:100%}
+.field input.mono{font:500 18px var(--f-mono)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fields .full{grid-column:1/-1}
+.unit{display:flex;gap:8px;align-items:center}.unit span{color:var(--muted);font-weight:700}
+.wrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.tkgval{font:700 24px/42px var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.msg{font-size:13px;margin:0}
+.msg:empty{display:none}
+.msg.ok{color:var(--mark)}.msg.err{color:var(--danger)}
+.note{font-size:12.5px;color:var(--muted);margin:4px 0 0;line-height:1.35}
+.disclaimer{border-left:3px solid var(--grain);padding-left:8px}
+.rule{border:0;border-top:1px solid var(--line);margin:2px 0;width:100%}
+#customBox{display:flex;flex-direction:column;gap:6px}
+#classRows{display:flex;flex-direction:column;gap:6px}
+.crow{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto 36px;gap:6px;align-items:center}
+.crow .sw{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--ink)}
+.crow .sw svg{width:16px;height:16px;filter:drop-shadow(0 0 1.5px rgba(255,255,255,.9))}
+.crow input{font:500 15px var(--f-body);min-height:40px;padding:0 8px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);min-width:0;width:100%}
+.crow .cnt{font:700 14px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--grain);min-width:2.5ch;text-align:right}
+.crow .pick{min-height:40px;font-size:12.5px;padding:0 9px}
+.crow .del{min-height:40px;width:36px;padding:0;font-weight:400}
+.addclass{min-height:40px;font-size:13.5px;border-style:dashed}
+.seg.cls button{gap:5px;font-size:12.5px}
+.seg.cls svg{width:13px;height:13px;flex:none}
+.dock.collapsed .pane{display:none!important}
+.dock.collapsed{max-height:none}
+.tabs button[aria-selected=true]::after{content:"";position:absolute;right:6px;top:50%;width:6px;height:6px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-70%) rotate(45deg);opacity:.7}
+.dock.collapsed .tabs button[aria-selected=true]::after{transform:translateY(-30%) rotate(225deg)}
+.tabs button{position:relative}
+.stage.picking .tool,.stage.picking #undoBtn{opacity:.3;pointer-events:none}
+.stage.picking{cursor:copy}
+.vs{position:absolute;z-index:3;top:8px;bottom:56px;width:46px;display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:6px 0;border-radius:23px;background:rgba(15,18,20,.62);color:#fff;touch-action:none;user-select:none}
+.vs.left{left:6px}.vs.right{right:6px}
+.vs .vlabel{font-size:9.5px;font-weight:700;letter-spacing:.02em;opacity:.85}
+.vs .vval{font:700 14px var(--f-mono);line-height:1}
+.vsb{min-height:30px;width:34px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font:700 18px var(--f-mono)}
+.vsb:hover{border:0;background:rgba(255,255,255,.25)}
+.vtrack{position:relative;flex:1;width:6px;border-radius:3px;background:rgba(255,255,255,.28);margin:4px 0;cursor:ns-resize}
+.vtrack::before{content:"";position:absolute;inset:0 -18px}
+.vfill{position:absolute;left:0;right:0;bottom:0;border-radius:3px;background:#e2b350}
+.vthumb{position:absolute;left:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.vs:focus-visible{outline:3px solid #e2b350}
+.vs{display:none}
+.stage.tune .vs.open,.stage.full .vs.open{display:flex}
+.vicon{position:absolute;z-index:3;top:8px;width:46px;min-height:56px;padding:6px 0;flex-direction:column;gap:2px;font-size:9.5px;font-weight:700;border-radius:23px}
+.vicon svg{width:22px;height:22px}
+.vicon{border:2px solid #e2b350!important;background:rgba(15,18,20,.85)!important;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.vicon .chev{width:7px;height:7px;border-right:2px solid #e2b350;border-bottom:2px solid #e2b350;transform:rotate(45deg);margin-top:1px}
+.vicon:active{transform:scale(.94)}
+.vicon.left{left:6px}.vicon.right{right:6px}
+.vicon{display:none}
+.stage.tune .vicon,.stage.full .vicon{display:inline-flex}
+.stage .vicon.hide{display:none!important}
+.vtitle{min-height:30px;border:0;background:transparent;color:#fff;font-size:9.5px;font-weight:700;padding:0 2px;flex-direction:column;gap:0;line-height:1.1}
+.vtitle i.x{font-style:normal;font-size:12px;width:22px;height:22px;line-height:22px;border-radius:50%;background:#e2b350;color:#1a1408;margin-top:3px;display:block}
+.vs{border:2px solid #e2b350}
+.vtitle:hover{border:0}
+.stage.full .vs{top:calc(8px + env(safe-area-inset-top,0px));bottom:calc(140px + env(safe-area-inset-bottom,0px))}
+.stage.full .vicon{top:calc(8px + env(safe-area-inset-top,0px))}
+.ib{min-height:40px;width:40px;padding:0}
+.roireset{left:calc(8px + env(safe-area-inset-left,0px));bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+.ib:hover{border:0;background:rgba(15,18,20,.9)}
+.check{display:flex;gap:8px;align-items:center;font-size:13.5px;margin-top:4px}
+.check input{width:20px;height:20px;accent-color:var(--grain)}
+.ihint{display:flex;flex-wrap:wrap;gap:4px 14px}
+.ihint span{display:inline-flex;align-items:center;gap:5px}
+.ihint svg{width:17px;height:17px}
+.fields.one{grid-template-columns:1fr}
+.dock[data-tab=tkg],.dock[data-tab=saved]{max-height:64%}
+.dock[data-tab=count]{max-height:30%}
+.toast{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));margin:0 auto;width:fit-content;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:90;max-width:440px;
+  background:#20262a;color:#eef1ee;border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.4;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.toast b{color:#e2b350}
+.sumrow{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted)}
+.sumrow b{font:700 14px var(--f-mono);color:var(--ink)}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:10px}
+.prow .meta{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis}
+.prow .meta b{color:var(--ink);font-family:var(--f-mono)}
+.prow button{min-height:36px;font-size:12px;padding:0 10px;font-weight:400}
+.prow .del.arm{border-color:var(--danger);color:var(--danger)}
+.stage.tune .view{left:58px}
+.stage.tune .zoomhint{left:58px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}.btnrow>*{flex:1}
+.ask .ctl-head span{color:var(--ink)}
+.ask.need .seg{border-color:var(--grain);box-shadow:0 0 0 2px var(--grain-soft)}
+.ask.need .ctl-head span::after{content:" Bitte wählen.";color:var(--danger);font-weight:700}
+.basisSeg button[aria-pressed=true]{background:var(--grain-soft)}
+.shareview{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px)}
+.sv-top{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 6px 14px;border-bottom:1px solid var(--line);flex:none}
+.sv-top b{font:700 16px var(--f-display)}
+.sv-x{width:44px;padding:0;font-size:18px}
+.sv-img{flex:1;min-height:0;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:10px;background:var(--stage)}
+.sv-img img{max-width:100%;height:auto;border-radius:6px}
+.sv-bar{flex:none;display:flex;flex-direction:column;gap:6px;padding:10px 12px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--panel)}
+.sv-bar .note{text-align:center}
+.dot.num{width:16px;height:16px;color:#fff;font:700 10px/16px var(--f-mono);text-align:center;font-style:normal;vertical-align:-3px}
+.legend{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--muted)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.dot.ring{border:2px solid}.dot.dash{border:2px dashed}
+
+/* Chargen */
+.group{display:flex;flex-direction:column;gap:6px}
+.ghead{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;font:700 14.5px var(--f-display);min-height:46px}
+.ghead em{font:400 12.5px var(--f-body);color:var(--muted);font-style:normal;display:flex;align-items:center;gap:8px}
+.ghead em::after{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px)}
+.group.open .ghead em::after{transform:rotate(225deg)}
+.group.open .ghead{border-color:var(--grain)}
+.group h3{margin:0;font:700 14.5px var(--f-display);display:flex;justify-content:space-between;gap:4px 10px;flex-wrap:wrap}
+.group h3 span{font:700 13px var(--f-mono);color:var(--grain)}
+.rec{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:5px;border:1px solid var(--line);border-radius:10px}
+.rec img{width:44px;height:44px;object-fit:cover;border-radius:6px;background:var(--stage)}
+.rec .meta{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis}
+.rec .meta b{color:var(--ink);font-family:var(--f-mono)}
+.rec .del{min-height:36px;font-size:12px;font-weight:400;padding:0 9px}
+.rec .del.arm{border-color:var(--danger);color:var(--danger)}
+.empty{font-size:13.5px;color:var(--muted);margin:0}
+
+/* Anleitung */
+.guide{position:fixed;inset:0;z-index:70;background:rgba(10,12,14,.55);display:flex;align-items:flex-end;justify-content:center;
+  padding:max(12px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+.sheet{background:var(--panel);border-radius:16px;max-width:560px;width:100%;max-height:100%;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -10px 40px rgba(0,0,0,.3)}
+.sheet h2{font:800 22px var(--f-display);margin:0}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:30px 1fr;gap:10px;counter-increment:s}
+.steps li::before{content:counter(s);width:30px;height:30px;border-radius:50%;background:var(--grain-soft);color:var(--ink);font:700 14px var(--f-mono);display:flex;align-items:center;justify-content:center}
+.steps b{display:block}
+.steps p{margin:0;font-size:13.5px;color:var(--muted)}
+.where{font:700 11px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--grain)}
+
+@media (max-width:599px){.srcline{visibility:hidden}h1{font-size:18px}.top{min-height:38px}.top .iconbtn{width:38px;min-height:38px}.app{gap:5px}}
+@media (max-width:480px){.tabs button[aria-selected=true]::after{right:5px;top:12px}}
+@media (min-width:900px){
+  body{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .app{display:grid;grid-template-columns:minmax(0,1fr) 390px;grid-template-rows:auto auto minmax(0,1fr);gap:12px;padding-block:14px}
+  .top{grid-column:1/-1}
+  h1{font-size:30px}
+  .stage{grid-column:1;grid-row:2/4}
+  .result{grid-column:2;grid-row:2}
+  .dock{grid-column:2;grid-row:3;max-height:none}
+  .big{font-size:42px}
+  .ctl .hint{display:block;margin-top:2px}
+  .pane{gap:14px;padding:12px 14px 14px}
+  .guide{align-items:center}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="top">
+    <h1>tal<span>ly</span></h1>
+    <p class="srcline" id="src">Beispielbild</p>
+    <button class="iconbtn" id="helpBtn" type="button" aria-label="Anleitung öffnen">?</button>
+    <div class="menuwrap">
+      <button class="addbtn iconbtn" id="addBtn" type="button" aria-label="Neues Foto" aria-haspopup="true" aria-expanded="false" aria-controls="menu">
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+      </button>
+      <div class="menu" id="menu" hidden>
+        <label class="btn" for="cam"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Kamera</label>
+        <label class="btn" for="file"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 16l5-5 4 4 3-3 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Galerie</label>
+        <button type="button" id="sample"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="9" cy="10" rx="4" ry="2.4" transform="rotate(-30 9 10)" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="15" cy="15" rx="4" ry="2.4" transform="rotate(25 15 15)" fill="none" stroke="currentColor" stroke-width="2"/></svg>Beispielbild</button>
+      </div>
+    </div>
+    <input type="file" id="cam" accept="image/*" capture="environment">
+    <input type="file" id="file" accept="image/*">
+  </div>
+
+  <div class="stage" id="stage" aria-label="Foto mit Zählmarkierungen. Zwei Finger zoomen.">
+    <canvas id="cv" width="900" height="600"></canvas>
+    <canvas id="ovc" width="900" height="600" aria-hidden="true"></canvas>
+    <div class="ov livecount" aria-live="polite"><b id="liveN">–</b><span id="liveL">Körner</span></div>
+    <div class="ovrow">
+
+    </div>
+    <button class="ov ib editbtn" id="editBtn" type="button" aria-label="Körner korrigieren und Zählbereich" title="Bearbeiten">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+    </button>
+    <button type="button" class="ov ib roireset" id="roiReset" hidden title="Zählbereich entfernen" aria-label="Zählbereich entfernen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M7 7l1 13h8l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="editbar">
+      <div class="tool" id="tool" role="group" aria-label="Werkzeug">
+        <button type="button" data-v="add" aria-pressed="false"><b><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="10" cy="13" rx="4.2" ry="7.5" transform="rotate(-25 10 13)" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="4.6" fill="currentColor"/><path d="M18 3.8v4.4M15.8 6h4.4" stroke="var(--tool-bg,#20262a)" stroke-width="1.8" stroke-linecap="round"/></svg></b>Korn setzen</button>
+        <button type="button" data-v="remove" aria-pressed="false"><b><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="10" cy="13" rx="4.2" ry="7.5" transform="rotate(-25 10 13)" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="4.6" fill="currentColor"/><path d="M16.4 4.4l3.2 3.2M19.6 4.4l-3.2 3.2" stroke="var(--tool-bg,#20262a)" stroke-width="1.8" stroke-linecap="round"/></svg></b>Korn löschen</button>
+        <button type="button" data-v="roi" aria-pressed="false" id="roiTool"><b><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6l12-2 3 11-9 5-7-6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-dasharray="3.5 2.5"/></svg></b>Bereich</button>
+      </div>
+      <div class="edithint" id="edithint">Werkzeug wählen. Mit zwei Fingern zoomen, doppelt tippen zeigt das ganze Bild.</div>
+      <div class="editactions">
+        <button type="button" id="undoBtn" aria-label="Rückgängig" disabled><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button type="button" class="done" id="doneBtn">Fertig</button>
+      </div>
+    </div>
+    <button class="ov vicon left" type="button" data-open="sens" aria-label="Empfindlichkeit einstellen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="currentColor"/></svg><span>Empf.</span><i class="chev" aria-hidden="true"></i></button>
+    <button class="ov vicon right" type="button" data-open="sep" aria-label="Körner trennen einstellen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="7.5" cy="12" rx="3.3" ry="6.5" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="16.5" cy="12" rx="3.3" ry="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2"/></svg><span>Trennen</span><i class="chev" aria-hidden="true"></i></button>
+    <div class="vs left" data-for="sens" data-step="2" role="slider" tabindex="0" aria-label="Empfindlichkeit" aria-valuemin="0" aria-valuemax="100">
+      <button type="button" class="vtitle" aria-label="Regler schließen">Empfindl.<i class="x" aria-hidden="true">✕</i></button><b class="vval">50</b>
+      <button type="button" class="vsb" data-d="1" aria-label="Empfindlichkeit erhöhen" tabindex="-1">+</button>
+      <div class="vtrack"><i class="vfill"></i><i class="vthumb"></i></div>
+      <button type="button" class="vsb" data-d="-1" aria-label="Empfindlichkeit verringern" tabindex="-1">−</button>
+    </div>
+    <div class="vs right" data-for="sep" data-step="1" role="slider" tabindex="0" aria-label="Berührende Körner trennen" aria-valuemin="0" aria-valuemax="20">
+      <button type="button" class="vtitle" aria-label="Regler schließen">Trennen<i class="x" aria-hidden="true">✕</i></button><b class="vval">5</b>
+      <button type="button" class="vsb" data-d="1" aria-label="Trennung erhöhen" tabindex="-1">+</button>
+      <div class="vtrack"><i class="vfill"></i><i class="vthumb"></i></div>
+      <button type="button" class="vsb" data-d="-1" aria-label="Trennung verringern" tabindex="-1">−</button>
+    </div>
+    <div class="ov prog" id="prog" hidden role="status"><span class="spin" aria-hidden="true"></span><span id="progT">Foto wird geladen</span><i><b id="progB"></b></i></div>
+    <div class="drop" id="drop" hidden>Foto hier ablegen</div>
+  </div>
+
+  <div class="result" aria-live="polite">
+    <div class="num"><span class="label" id="totalLabel">Körner</span><span class="big" id="total">–</span></div>
+    <div class="num"><span class="label">TKG</span><span class="mid" id="tkgBar">– <small>g</small></span></div>
+    <div class="breakdown" id="breakdown"></div>
+    <button class="undo" id="resetEdits" type="button" hidden aria-label="Alle Korrekturen verwerfen" title="Alle Korrekturen verwerfen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6M4.5 15a8 8 0 101.9-8.3L4 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+
+  <div class="dock" id="dock">
+    <div class="tabs" role="tablist" id="tabs">
+      <button role="tab" type="button" data-tab="start" aria-selected="true"><i>0</i>Start</button>
+      <button role="tab" type="button" data-tab="count" aria-selected="false"><i>1</i>Zählen</button>
+      <button role="tab" type="button" data-tab="small" aria-selected="false"><i>2</i>Sortieren</button>
+      <button role="tab" type="button" data-tab="tkg" aria-selected="false"><i>3</i>TKG</button>
+      <button role="tab" type="button" data-tab="saved" aria-selected="false"><i>4</i>Chargen</button>
+    </div>
+
+    <div class="pane" data-pane="start">
+      <div class="startbtns">
+        <label class="btn primary" for="cam"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Foto aufnehmen</label>
+        <label class="btn" for="file"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 16l5-5 4 4 3-3 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Aus Galerie</label>
+      </div>
+      <ul class="tips">
+        <li>Körner einlagig und möglichst ohne Berührung auslegen.</li>
+        <li>Einfarbiger, glatter Untergrund. Helle und dunkle Körner werden gemeinsam erkannt.</li>
+        <li>Gleichmäßiges Licht ohne harte Schatten, Handy gerade von oben, nur die Probe im Bild.</li>
+      </ul>
+      <p class="note">Kein eigenes Foto zur Hand? Zum Ausprobieren ist ein <b>Beispielfoto</b> geladen, ein neues kommt über das <b>+</b> oben rechts.</p>
+      <button class="linkbtn" type="button" id="guideLink">Ganze Anleitung ansehen</button>
+      <p class="note disclaimer"><b>Experimentell.</b> Nutzung auf eigene Gefahr, ohne Gewähr. Zählungen bitte stichprobenhaft von Hand nachprüfen. Daten werden nur im Browser dieses Geräts gespeichert.</p>
+    </div>
+
+    <div class="pane" data-pane="count" hidden>
+      <input id="sens" type="range" min="0" max="100" value="50" hidden><output id="sensO" hidden>50</output>
+      <input id="sep" type="range" min="0" max="20" value="5" hidden><output id="sepO" hidden>5</output>
+      <p class="hint ihint"><span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="currentColor"/></svg>Empfindlichkeit</span><span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="7.5" cy="12" rx="3.3" ry="6.5" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="16.5" cy="12" rx="3.3" ry="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2"/></svg>Körner trennen</span><span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Korrigieren &amp; Zählbereich</span></p>
+      <div class="legend">
+        <span><i class="dot ring" style="border-color:var(--mark)"></i>erkanntes Korn</span>
+        <span><i class="dot num" style="background:var(--mark)">3</i>Gruppe, Zahl = Körner darin</span>
+        <span><i class="dot ring" style="border-color:var(--grain)"></i>von Hand</span>
+        <span><i class="dot" style="background:var(--off)"></i>entfernt</span>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="small" hidden>
+      <div class="ctl">
+        <div class="ctl-head"><label for="small">Kleinkorn unter</label><output id="smallO">55 %</output></div>
+        <div class="ctl-row">
+          <button class="step" type="button" data-for="small" data-d="-5" aria-label="Kleinkorn-Grenze verringern">−</button>
+          <input id="small" type="range" min="0" max="90" step="5" value="55">
+          <button class="step" type="button" data-for="small" data-d="5" aria-label="Kleinkorn-Grenze erhöhen">+</button>
+        </div>
+        <p class="note">Blau gestrichelt: kleiner als dieser Anteil eines typischen Korns.</p>
+        <label class="check"><input type="checkbox" id="hl"> Kleinkorn im Bild hervorheben</label>
+      </div>
+      <div class="ctl">
+        <div class="ctl-head"><span>Auf die Waage kommt</span><output id="shareO"></output></div>
+        <div class="seg basisSeg" id="basis" role="group" aria-label="Was wird gewogen">
+          <button type="button" data-v="all">Mit Kleinkorn</button>
+          <button type="button" data-v="full">Ohne Kleinkorn</button>
+        </div>
+      </div>
+      <hr class="rule">
+      <div class="ctl">
+        <div class="ctl-head"><span>Farben</span></div>
+        <div class="seg" id="cmode" role="group" aria-label="Farben unterscheiden">
+          <button type="button" data-v="off" aria-pressed="true">Aus</button>
+          <button type="button" data-v="auto" aria-pressed="false">Hell/Dunkel</button>
+          <button type="button" data-v="custom" aria-pressed="false">Eigene</button>
+        </div>
+        <p class="note" id="cmodeHint"></p>
+      </div>
+      <div id="customBox" hidden>
+        <div id="classRows"></div>
+        <button type="button" id="addClass" class="addclass">+ Farbe hinzufügen</button>
+      </div>
+      <div class="ctl" id="clsBox" hidden>
+        <div class="ctl-head"><span>Zählen</span></div>
+        <div class="seg cls" id="cls" role="group" aria-label="Welche Körner zählen"></div>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="tkg" hidden>
+      <div class="ctl ask" id="basisAsk">
+        <div class="ctl-head"><span>Gewogen wurde</span></div>
+        <div class="seg basisSeg" id="basis2" role="group" aria-label="Was wurde gewogen">
+          <button type="button" data-v="all">Mit Kleinkorn</button>
+          <button type="button" data-v="full">Ohne Kleinkorn</button>
+        </div>
+      </div>
+      <div class="wrow">
+        <div class="field">
+          <label for="weight">Gewicht der Körner</label>
+          <div class="unit"><input class="mono" id="weight" type="text" inputmode="decimal" placeholder="6,4" autocomplete="off"><span>g</span></div>
+        </div>
+        <div class="field"><span class="label">TKG</span><span class="tkgval" id="tkgVal">– g</span></div>
+      </div>
+      <div class="fields one">
+        <div class="field"><label for="kultur">Kultur</label><input id="kultur" list="kulturen" placeholder="Auswählen oder selbst eintippen" autocomplete="off"></div>
+        <div class="field"><label for="sorte">Sorte</label><input id="sorte" placeholder="z. B. Sortenname" autocomplete="off"></div>
+        <div class="field"><label for="charge">Charge oder Schlag</label><input id="charge" placeholder="z. B. Hofsilo 2" autocomplete="off"></div>
+        <div class="field"><label for="probe">Probe</label><input id="probe" value="Probe 1" autocomplete="off"></div>
+      </div>
+      <datalist id="kulturen">
+        <option value="Winterweizen"><option value="Sommerweizen"><option value="Dinkel"><option value="Wintergerste"><option value="Sommergerste">
+        <option value="Roggen"><option value="Triticale"><option value="Hafer"><option value="Winterraps"><option value="Mais">
+        <option value="Ackerbohne"><option value="Erbse"><option value="Soja"><option value="Sonnenblume">
+      </datalist>
+      <div class="btnrow">
+        <button class="primary" id="saveBtn" type="button">Speichern</button>
+      </div>
+      <p class="msg" id="saveMsg"></p>
+    </div>
+
+    <div class="pane" data-pane="saved" hidden>
+      <p class="note" id="storeNote">Gespeichert wird nur in diesem Browser auf diesem Gerät. Beim Löschen der Browserdaten sind die Proben weg. Wichtige Ergebnisse deshalb über „Teilen“ sichern.</p>
+      <div id="savedList"><p class="empty">Gespeicherte Proben erscheinen hier, gruppiert nach Kultur und Sorte mit mittlerem TKG.</p></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden role="status"></div>
+<div class="guide" id="smallAsk" hidden role="dialog" aria-modal="true" aria-labelledby="smallAskT">
+  <div class="sheet">
+    <h2 id="smallAskT">Kleinkorn aussortiert?</h2>
+    <p class="note" style="font-size:14px">Für „ohne Kleinkorn“ müssen alle <b id="smallAskN">0</b> blau markierten Kleinkörner vor dem Wiegen aus der Probe genommen werden – so wie das Saatgut nach der Reinigung. Sonst stimmt das TKG nicht.</p>
+    <div class="btnrow" style="flex-direction:column">
+      <button class="primary" id="smallYes" type="button">Ja, alle sind entfernt</button>
+      <button id="smallShow" type="button">Kleinkörner im Bild zeigen</button>
+      <button id="smallNo" type="button">Nein, mit Kleinkorn wiegen</button>
+    </div>
+  </div>
+</div>
+<div class="guide" id="discard" hidden role="dialog" aria-modal="true" aria-labelledby="discardT">
+  <div class="sheet">
+    <h2 id="discardT">Neues Foto laden?</h2>
+    <p class="note" style="font-size:14px">Die aktuelle Probe ist noch nicht gespeichert. Korrekturen, Zählbereich und Gewicht gehen verloren.</p>
+    <div class="btnrow" style="flex-direction:column">
+      <button class="primary" id="discardSave" type="button">Erst speichern</button>
+      <button id="discardYes" type="button">Verwerfen und neues Foto</button>
+      <button id="discardNo" type="button">Abbrechen</button>
+    </div>
+  </div>
+</div>
+<div class="shareview" id="shareView" hidden role="dialog" aria-modal="true" aria-label="Ergebnis als Bild">
+  <div class="sv-top"><b>Ergebnis als Bild</b><button id="shareClose" type="button" class="sv-x" aria-label="Schließen">✕</button></div>
+  <div class="sv-img"><img id="shareImg" alt="Ergebnis als Bild"></div>
+  <div class="sv-bar">
+    <p class="msg" id="shareMsg"></p>
+    <div class="btnrow">
+      <button class="primary" id="shareNow" type="button" hidden>Teilen</button>
+      <button id="saveImg" type="button" hidden>Speichern</button>
+    </div>
+    <p class="note">Beim Teilen bietet das Handy auch „In Galerie speichern“ an. Oder lange auf das Bild drücken.</p>
+  </div>
+</div>
+
+<div class="guide" id="guide" hidden role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+  <div class="sheet">
+    <h2 id="guideTitle">So bestimmst du das TKG</h2>
+    <ol class="steps">
+      <li><div><b>Körner verteilen</b><p>Eine Probe einlagig auslegen, Körner möglichst ohne Berührung. Einige hundert Körner pro Foto reichen. Zum Ausprobieren ist ein Beispielfoto geladen.</p></div></li>
+      <li><div><b>Foto machen</b><p>Einfarbiger, glatter Untergrund in einer anderen Farbe als die Körner. Gleichmäßiges Licht ohne harte Schatten, Handy gerade von oben, nur die Probe im Bild.</p><span class="where">Reiter 0 · Start oder + oben</span></div></li>
+      <li><div><b>Zählen</b><p>Mit Empfindlichkeit und Trennen einstellen, bis fast jedes Korn markiert ist. Über den Stift Körner setzen, löschen und den Zählbereich festlegen.</p><span class="where">Reiter 1 · Zählen</span></div></li>
+      <li><div><b>Sortieren</b><p>Für das TKG des gereinigten Saatguts die blau markierten Kleinkörner aus der Probe nehmen und „Ohne Kleinkorn“ wählen. Sonst mit Kleinkorn wiegen. Farben unterscheiden ist optional, z. B. für Fremdkorn.</p><span class="where">Reiter 2 · Sortieren</span></div></li>
+      <li><div><b>Wiegen</b><p>Genau die gezählten Körner wiegen – mit oder ohne Kleinkorn, passend zur Auswahl – und das Gewicht in Gramm eintragen.</p><span class="where">Reiter 3 · TKG</span></div></li>
+      <li><div><b>Speichern und teilen</b><p>Mit Kultur, Sorte, Charge und Probe speichern. Mehrere Proben einer Charge werden gemittelt. Gespeichert wird nur in diesem Browser – über „Teilen“ das Ergebnisbild sichern oder weitergeben.</p><span class="where">Reiter 3 und 4</span></div></li>
+    </ol>
+    <p class="note disclaimer"><b>Experimentell.</b> Nutzung auf eigene Gefahr, ohne Gewähr für Richtigkeit. Gruppen von Körnern werden geschätzt – Zählungen bitte stichprobenhaft von Hand prüfen.</p>
+    <button class="primary" id="guideClose" type="button">Los geht’s</button>
+  </div>
+</div>
+
+<script>
+(()=>{
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d',{willReadFrequently:true});
+const ovc=document.getElementById('ovc'),octx=ovc.getContext('2d');
+const $=id=>document.getElementById(id);
+const stage=$('stage');
+const MAXD=1200, DUST=0.12;
+const S={src:null,w:0,h:0,comps:[],median:0,
+  adj:[],added:[],hist:[],editing:false,tool:null,
+  cls:'all',cmode:'off',cmodeAuto:true,classes:[],pickFor:null,clf:null,view:'photo',basis:'all',counts:null};
+const fmt=n=>n.toLocaleString('de-DE');
+function escH(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+const fmtG=n=>n.toLocaleString('de-DE',{minimumFractionDigits:1,maximumFractionDigits:1});
+
+/* ---------- Anleitung ---------- */
+const guide=$('guide');
+const openGuide=()=>{guide.hidden=false;$('guideClose').focus()};
+const closeGuide=()=>{guide.hidden=true;try{localStorage.setItem('tally_guide','1')}catch(e){}};
+$('helpBtn').onclick=openGuide;$('guideLink').onclick=openGuide;$('guideClose').onclick=closeGuide;
+guide.addEventListener('click',e=>{if(e.target===guide)closeGuide()});
+try{if(!localStorage.getItem('tally_guide'))openGuide()}catch(e){openGuide()}
+
+/* ---------- Foto-Menü ---------- */
+const menu=$('menu'),addBtn=$('addBtn');
+const setMenu=open=>{menu.hidden=!open;addBtn.setAttribute('aria-expanded',open)};
+addBtn.addEventListener('click',e=>{e.stopPropagation();
+  if(menu.hidden&&isDirty()){$('discard').hidden=false;return}
+  setMenu(menu.hidden)});
+function isDirty(){return !!(S.src&&!S.sample&&!S.saved&&(S.hist?.length||S.roi||$('weight').value.trim()))}
+$('discardNo').onclick=()=>{$('discard').hidden=true};
+$('discardSave').onclick=()=>{$('discard').hidden=true;selectTab('tkg')};
+$('discardYes').onclick=()=>{$('discard').hidden=true;setMenu(true)};
+document.addEventListener('click',e=>{if(!menu.hidden&&!menu.contains(e.target))setMenu(false)});
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;setMenu(false);if(!guide.hidden)closeGuide();else if(S.editing)setEditing(false)});
+
+/* ---------- Bild laden ---------- */
+const tick=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
+let loadId=0;
+function progress(text,frac){const p=$('prog');if(text===null){p.hidden=true;return}
+  p.hidden=false;$('progT').textContent=text;$('progB').style.width=Math.round(frac*100)+'%'}
+async function setImage(source,label){
+  const id=++loadId;
+  let w=source.width,h=source.height;const k=Math.min(1,MAXD/Math.max(w,h));
+  w=Math.round(w*k);h=Math.round(h*k);
+  const off=document.createElement('canvas');off.width=w;off.height=h;
+  const o=off.getContext('2d',{willReadFrequently:true});o.imageSmoothingQuality='high';o.drawImage(source,0,0,w,h);
+  // 1. Foto sofort zeigen
+  S.src=off;S.w=w;S.h=h;cv.width=ovc.width=w;cv.height=ovc.height=h;
+  S.F=null;S.comps=[];S.allComps=[];S.counts=null;S.adj=[];S.added=[];S.hist=[];S.roi=null;S.basisOk=true;S.basis='all';S.saved=false;S.cmodeAuto=true;S.sample=label.startsWith('Beispiel');
+  ctx.drawImage(off,0,0);octx.clearRect(0,0,w,h);
+  $('src').textContent=label;$('weight').value='';$('saveMsg').textContent='';
+  $('total').textContent='…';$('liveN').textContent='…';$('breakdown').textContent='Wird ausgewertet';
+  Z.s=1;S.fit=null;layout();
+  progress('Foto wird vorbereitet',0.15);await tick();if(id!==loadId)return;
+  const d=o.getImageData(0,0,w,h).data,n=w*h;
+  const ch=[0,1,2].map(c=>{const a=new Float32Array(n);for(let i=0;i<n;i++)a[i]=d[i*4+c];return blur(a,w,h)});
+  progress('Untergrund wird erkannt',0.45);await tick();if(id!==loadId)return;
+  prepare(ch,w,h);
+  workerInit();
+  progress('Körner werden gezählt',0.8);await tick();if(id!==loadId)return;
+  S.onResult=()=>{progress(null);if(!S.roi&&S.comps.length>=5)fitTo(countedBox(),0.04)};
+  run();
+}
+async function loadFile(f){
+  setMenu(false);
+  if(!f)return;
+  if(!f.type.startsWith('image/')&&!/\.(jpe?g|png|webp|heic)$/i.test(f.name)){$('src').textContent='Keine Bilddatei. Bitte JPG oder PNG wählen.';return}
+  progress('Foto wird geladen',0.05);selectTab('count');
+  try{
+    let src;
+    if(window.createImageBitmap){try{src=await createImageBitmap(f)}catch(e){src=null}}
+    if(!src){src=await new Promise((res,rej)=>{const url=URL.createObjectURL(f),im=new Image();
+      im.onload=()=>{URL.revokeObjectURL(url);res(im)};im.onerror=()=>{URL.revokeObjectURL(url);rej()};im.src=url})}
+    await setImage(src,f.name);
+    src.close?.();
+  }catch(e){progress(null);$('src').textContent='Bild nicht lesbar. HEIC bitte als JPG speichern.'}
+}
+['file','cam'].forEach(id=>$(id).addEventListener('change',e=>{loadFile(e.target.files[0]);e.target.value=''}));
+['dragenter','dragover'].forEach(t=>stage.addEventListener(t,e=>{e.preventDefault();$('drop').hidden=false}));
+['dragleave','drop'].forEach(t=>stage.addEventListener(t,e=>{e.preventDefault();$('drop').hidden=true}));
+stage.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
+document.addEventListener('paste',e=>{const it=[...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/'));if(it)loadFile(it.getAsFile())});
+
+/* ---------- Bildverarbeitung ---------- */
+function blur(g,w,h){
+  const t=new Float32Array(w*h);let a=g,o=new Float32Array(w*h);
+  for(let pass=0;pass<2;pass++){
+    for(let y=0;y<h;y++){const r=y*w;t[r]=(a[r]+a[r+1])/2;t[r+w-1]=(a[r+w-2]+a[r+w-1])/2;
+      for(let x=1;x<w-1;x++)t[r+x]=(a[r+x-1]+a[r+x]+a[r+x+1])/3}
+    for(let x=0;x<w;x++){o[x]=(t[x]+t[x+w])/2;o[(h-1)*w+x]=(t[(h-2)*w+x]+t[(h-1)*w+x])/2}
+    for(let y=1;y<h-1;y++){const r=y*w;for(let x=0;x<w;x++)o[r+x]=(t[r+x-w]+t[r+x]+t[r+x+w])/3}
+    if(pass===0){a=o;o=new Float32Array(w*h)}else a=o}
+  return a;
+}
+function otsu(g,fn){
+  const hist=new Float64Array(256);for(let i=0;i<g.length;i++){let v=fn?fn(g[i]):g[i];v=v<0?0:v>255?255:v;hist[v|0]++}
+  let sum=0;for(let i=0;i<256;i++)sum+=i*hist[i];
+  let sB=0,wB=0,best=0,t=128;const tot=g.length;
+  for(let i=0;i<256;i++){wB+=hist[i];if(!wB)continue;const wF=tot-wB;if(!wF)break;
+    sB+=i*hist[i];const mB=sB/wB,mF=(sum-sB)/wF;const v=wB*wF*(mB-mF)**2;if(v>best){best=v;t=i}}
+  return t;
+}
+// Summen über ein (2r+1)²-Fenster, an den Rändern beschnitten
+function boxSum(src,w,h,r){
+  const tmp=new Float32Array(w*h),out=new Float32Array(w*h),p=new Float64Array(Math.max(w,h)+1);
+  for(let y=0;y<h;y++){const o=y*w;p[0]=0;for(let x=0;x<w;x++)p[x+1]=p[x]+src[o+x];
+    for(let x=0;x<w;x++)tmp[o+x]=p[Math.min(w,x+r+1)]-p[Math.max(0,x-r)]}
+  for(let x=0;x<w;x++){p[0]=0;for(let y=0;y<h;y++)p[y+1]=p[y]+tmp[y*w+x];
+    for(let y=0;y<h;y++)out[y*w+x]=p[Math.min(h,y+r+1)]-p[Math.max(0,y-r)]}
+  return out}
+// Untergrund lokal schätzen (Schatten, Lichtverlauf) und je Bildpunkt den Abstand dazu messen:
+// L = heller/dunkler als der Untergrund, C = Farbabweichung. Helle und dunkle Körner fallen beide auf.
+function prepare(ch,w,h){
+  const n=w*h,f=4,sw=Math.ceil(w/f),sh=Math.ceil(h/f),sn=sw*sh;
+  const R=Math.max(2,Math.round(Math.max(w,h)/14/f));
+  // verkleinern (Blockmittel)
+  const sc=[0,1,2].map(c=>{const o=new Float32Array(sn),cnt=new Float32Array(sn),src=ch[c];
+    for(let y=0;y<h;y++){const sy=(y/f|0)*sw,r=y*w;for(let x=0;x<w;x++){const k=sy+(x/f|0);o[k]+=src[r+x];cnt[k]++}}
+    for(let k=0;k<sn;k++)o[k]/=cnt[k];return o});
+  const wt=new Float32Array(sn).fill(1),bg=[new Float32Array(sn),new Float32Array(sn),new Float32Array(sn)],Fs=new Float32Array(sn);
+  for(let pass=0;pass<2;pass++){
+    const den=boxSum(wt,sw,sh,R);
+    for(let c=0;c<3;c++){const prod=new Float32Array(sn);for(let k=0;k<sn;k++)prod[k]=sc[c][k]*wt[k];
+      const num=boxSum(prod,sw,sh,R);for(let k=0;k<sn;k++)if(den[k]>0.5)bg[c][k]=num[k]/den[k]}
+    for(let k=0;k<sn;k++){const dr=sc[0][k]-bg[0][k],dg=sc[1][k]-bg[1][k],db=sc[2][k]-bg[2][k],l=(dr+dg+db)/3;
+      Fs[k]=Math.sqrt(l*l+4*((dr-l)**2+(dg-l)**2+(db-l)**2))}
+    const t=otsu(Fs);for(let k=0;k<sn;k++)wt[k]=Fs[k]<t?1:0;
+  }
+  // volle Auflösung: Untergrund bilinear, Abstand je Bildpunkt
+  const L=new Float32Array(n),F=new Float32Array(n),D0=new Float32Array(n),D1=new Float32Array(n),D2=new Float32Array(n);
+  for(let y=0;y<h;y++){const fy=Math.min(sh-1,Math.max(0,(y+.5)/f-.5)),y0=fy|0,y1=Math.min(sh-1,y0+1),ty=fy-y0,r=y*w;
+    for(let x=0;x<w;x++){const fx=Math.min(sw-1,Math.max(0,(x+.5)/f-.5)),x0=fx|0,x1=Math.min(sw-1,x0+1),tx=fx-x0;
+      const a=y0*sw+x0,b=y0*sw+x1,c=y1*sw+x0,d=y1*sw+x1,w00=(1-tx)*(1-ty),w01=tx*(1-ty),w10=(1-tx)*ty,w11=tx*ty,i=r+x;
+      const br=bg[0][a]*w00+bg[0][b]*w01+bg[0][c]*w10+bg[0][d]*w11;
+      const bgn=bg[1][a]*w00+bg[1][b]*w01+bg[1][c]*w10+bg[1][d]*w11;
+      const bb=bg[2][a]*w00+bg[2][b]*w01+bg[2][c]*w10+bg[2][d]*w11;
+      const dr=ch[0][i]-br,dg=ch[1][i]-bgn,db=ch[2][i]-bb,l=(dr+dg+db)/3;
+      D0[i]=dr;D1[i]=dg;D2[i]=db;
+      L[i]=l;F[i]=Math.sqrt(l*l+4*((dr-l)**2+(dg-l)**2+(db-l)**2))}}
+  S.L=L;S.F=F;S.D=[D0,D1,D2];S.ch=ch;S.thr={all:otsu(F)};
+}
+function distT(m,w,h,d){
+  const D=1.4142,BIG=1e9;
+  for(let i=0;i<m.length;i++)d[i]=m[i]?BIG:0;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(!d[i])continue;
+    let v=d[i];
+    if(x===0||y===0||x===w-1||y===h-1){d[i]=1;continue}
+    v=Math.min(v,d[i-1]+1,d[i-w]+1,d[i-w-1]+D,d[i-w+1]+D);d[i]=v}
+  for(let y=h-1;y>=0;y--)for(let x=w-1;x>=0;x--){const i=y*w+x;if(!d[i])continue;
+    if(x===0||y===0||x===w-1||y===h-1)continue;
+    d[i]=Math.min(d[i],d[i+1]+1,d[i+w]+1,d[i+w+1]+D,d[i+w-1]+D)}
+  return d}
+function erode(src,dst,w,h){dst.fill(0);
+  for(let y=1;y<h-1;y++){const r=y*w;for(let x=1;x<w-1;x++){const i=r+x;
+    dst[i]=src[i]&src[i-1]&src[i+1]&src[i-w]&src[i+w]}}}
+function label(m,w,h,lab,st,Lv,dT){
+  lab.fill(0);const comps=[];let id=0;const n=w*h;
+  for(let i=0;i<n;i++){
+    if(!m[i]||lab[i])continue;id++;let sp=0;st[sp++]=i;lab[i]=id;let a=0,sx=0,sy=0,sl=0,nd=0;
+    while(sp){const p=st[--sp],x=p%w;a++;sx+=x;sy+=(p-x)/w;sl+=Lv[p];if(Lv[p]<dT)nd++;
+      if(x>0&&m[p-1]&&!lab[p-1]){lab[p-1]=id;st[sp++]=p-1}
+      if(x<w-1&&m[p+1]&&!lab[p+1]){lab[p+1]=id;st[sp++]=p+1}
+      if(p>=w&&m[p-w]&&!lab[p-w]){lab[p-w]=id;st[sp++]=p-w}
+      if(p<n-w&&m[p+w]&&!lab[p+w]){lab[p+w]=id;st[sp++]=p+w}}
+    comps.push({id,a,cx:sx/a,cy:sy/a,l:sl/a,df:nd/a})}
+  return comps}
+const median=arr=>{if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b);return s[Math.floor(s.length/2)]};
+
+// Reine Auswertung – läuft im Hintergrundprozess (oder als Ersatz direkt)
+function analyze(P,D){
+  const {w,h}=P,{F,L,buf}=D,DUST=P.dust;
+  const t=Math.max(3,P.thr*Math.pow(2,(50-P.sens)/35)); // 50 = automatisch, 0…100 ≈ ×2,7 … ×0,37
+  const m=buf.m;
+  for(let i=0;i<m.length;i++)m[i]=F[i]>t?1:0;
+  // Trennen: Körner um 0,3 Bildpunkte je Stufe schrumpfen (Abstand zum Rand per Distanztransformation)
+  let cur=m;const T=P.sep*0.3;
+  if(T>0){const dt=distT(m,w,h,buf.dt),a=buf.a;for(let i=0;i<m.length;i++)a[i]=dt[i]>T?1:0;cur=a}
+  const R=P.roi;
+  let darkT;
+  {const v=[],step=Math.max(1,Math.floor(m.length/40000));
+   for(let i=0;i<m.length;i+=step)if(cur[i]){const x=i%w,y=(i-x)/w;if(!R||inPoly(x,y,R))v.push(L[i])}
+   darkT=splitDark(v)}
+  const raw=label(cur,w,h,buf.lab,buf.st,L,-Infinity).filter(c=>c.a>=4);
+  // Fläche je Korn in der ungeschrumpften Maske: Haufen werden bei jeder Trennstufe gleich geschätzt
+  if(cur!==m){
+    const orig=label(m,w,h,buf.lab2,buf.st,L,-Infinity),sumE=new Float64Array(orig.length+1),lab=buf.lab,lab2=buf.lab2;
+    const byId=new Map(raw.map(c=>[c.id,c]));
+    for(const c of raw)c.oid=0;
+    for(let i=0;i<lab.length;i++){const id=lab[i];if(id){const c=byId.get(id);if(c&&!c.oid)c.oid=lab2[i]}}
+    for(const c of raw)if(c.oid)sumE[c.oid]+=c.a;
+    for(const c of raw)c.ao=c.oid?orig[c.oid-1].a*c.a/sumE[c.oid]:c.a;
+  } else for(const c of raw)c.ao=c.a;
+  let comps=R?raw.filter(c=>inPoly(c.cx,c.cy,R)):raw.slice();
+  let med=median(comps.map(c=>c.ao));
+  comps=comps.filter(c=>c.ao>=med*DUST);
+  med=median(comps.filter(c=>c.ao>med*0.4&&c.ao<med*1.6).map(c=>c.ao))||med;
+  comps.forEach(c=>{
+    c.n=c.ao>1.5*med?Math.max(2,Math.round(c.ao/med)):1;
+    c.small=c.n===1&&P.small>0&&c.ao<med*P.small;
+  });
+  // Bildpunkte der Haufen gepackt mitgeben (für eine Markierung je Korn)
+  const cl=comps.filter(c=>c.n>1),idx=new Map();let tot=0;
+  cl.forEach(c=>{c.po=tot;tot+=c.a;c.pn=0;idx.set(c.id,c)});
+  const pk=new Int32Array(tot);
+  if(cl.length){const lab=buf.lab;for(let i=0;i<lab.length;i++){const id=lab[i];if(id){const c=idx.get(id);if(c)pk[c.po+c.pn++]=i}}}
+  const medA=median(comps.filter(c=>c.n===1).map(c=>c.a))||med;
+  const strip=c=>({id:c.id,a:c.a,ao:c.ao,cx:c.cx,cy:c.cy,n:c.n,small:c.small,po:c.po,pn:c.pn});
+  return {comps:comps.map(strip),raw:raw.map(c=>({a:c.a,ao:c.ao,cx:c.cx,cy:c.cy})),med,medA,darkT,
+    mask:m.slice(),core:cur.slice(),lab:buf.lab.slice(),pk};
+}
+function newBuf(n){return {m:new Uint8Array(n),a:new Uint8Array(n),lab:new Int32Array(n),lab2:new Int32Array(n),st:new Int32Array(n),dt:new Float32Array(n)}}
+// Hintergrundprozess aus denselben Funktionen bauen
+let worker=null,busy=false,pending=false,imgSeq=0;
+function makeWorker(){
+  try{
+    const src=[distT,label,splitDark,inPoly,analyze,newBuf].map(f=>f.toString()).join('\n')+
+      '\nconst median='+median.toString()+';\nlet D=null;\nonmessage=e=>{const q=e.data;'+
+      'if(q.type==="init"){D={F:q.F,L:q.L,buf:newBuf(q.w*q.h)};return}'+
+      'if(!D)return;const r=analyze(q.P,D);r.seq=q.seq;postMessage(r,[r.mask.buffer,r.core.buffer,r.lab.buffer,r.pk.buffer])};';
+    const wk=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
+    wk.onmessage=e=>{busy=false;const r=e.data;if(r.seq===imgSeq)applyResult(r);if(pending){pending=false;run()}};
+    wk.onerror=()=>{worker=null;busy=false;run()};
+    return wk;
+  }catch(e){return null}
+}
+function workerInit(){
+  if(worker===null)worker=makeWorker();
+  imgSeq++;busy=false;pending=false;
+  if(worker)worker.postMessage({type:'init',w:S.w,h:S.h,F:S.F.slice(),L:S.L.slice()});
+  else S.buf=newBuf(S.w*S.h);
+}
+function params(){return {w:S.w,h:S.h,sens:+$('sens').value,sep:+$('sep').value,small:+$('small').value/100,roi:S.roi,thr:S.thr.all,dust:DUST}}
+function run(){
+  if(!S.F)return;
+  if(worker){if(busy){pending=true;return}busy=true;worker.postMessage({type:'run',seq:imgSeq,P:params()});return}
+  if(!S.buf||S.buf.m.length!==S.w*S.h)S.buf=newBuf(S.w*S.h);
+  applyResult(analyze(params(),{F:S.F,L:S.L,buf:S.buf}));
+}
+function applyResult(r){
+  S.mask=r.mask;S.core=r.core;S.lab=r.lab;S.darkT=r.darkT;
+  for(const c of r.comps)if(c.n>1)c.px=r.pk.subarray(c.po,c.po+c.pn);
+  S.comps=r.comps;S.allComps=r.raw;S.median=r.med;S.medianA=r.medA;
+  // Farben automatisch: Hell/Dunkel, wenn zwei Gruppen klar erkannt sind, sonst aus – bis der Nutzer selbst wählt
+  if(S.cmodeAuto){const m=r.darkT!==null?'auto':'off';
+    if(m!==S.cmode){S.cmode=m;S.cls='all';[...$('cmode').children].forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===m));renderRows()}}
+  S.clf=classifier();S.clfVer=(S.clfVer||0)+1;
+  render();
+  if(S.onResult){const f=S.onResult;S.onResult=null;f()}
+}
+// Farbklassen: automatisch hell/dunkel oder bis zu 3 vom Nutzer gewählte Farben
+function classifier(){
+  if(S.cmode==='auto'){
+    if(S.darkT===null)return null;
+    const L=S.L,t=S.darkT;
+    return {K:2,names:['hell','dunkel'],at:i=>L[i]<t?1:0};
+  }
+  if(S.cmode==='custom'){
+    const cl=S.classes.filter(c=>c.vec);
+    if(cl.length<2)return null;
+    const [D0,D1,D2]=S.D,V=cl.map(c=>c.vec);
+    return {K:cl.length,names:cl.map(c=>c.name||'Farbe'),at:i=>{let b=0,bd=Infinity;
+      for(let k=0;k<V.length;k++){const d=(D0[i]-V[k][0])**2+(D1[i]-V[k][1])**2+(D2[i]-V[k][2])**2;if(d<bd){bd=d;b=k}}return b}};
+  }
+  return null;
+}
+// Haufen: Anteile je Farbe aus allen Kornbildpunkten, dann den Punkten zuordnen
+function assignClump(c,pts){
+  const f=S.clf,K=f.K,e=pts.length;
+  if(!c.px)spread(c,2);
+  const cnt=new Float64Array(K);for(const i of c.px)cnt[f.at(i)]++;
+  const tot=cnt.reduce((a,b)=>a+b,0)||1;
+  const q=Array.from(cnt,v=>Math.floor(v/tot*e)),rest=Array.from(cnt,(v,k)=>v/tot*e-q[k]);
+  let left=e-q.reduce((a,b)=>a+b,0);
+  while(left>0){let b=0;for(let k=1;k<K;k++)if(rest[k]>rest[b])b=k;q[b]++;rest[b]=-1;left--}
+  const cand=[];pts.forEach((p,pi)=>{const v=clsVotes(p.x,p.y),s=v.reduce((a,b)=>a+b,0)||1;for(let k=0;k<K;k++)cand.push([v[k]/s,pi,k])});
+  cand.sort((a,b)=>b[0]-a[0]);
+  for(const [,pi,k] of cand)if(pts[pi].k===undefined&&q[k]>0){pts[pi].k=k;q[k]--}
+  for(const p of pts)if(p.k===undefined)p.k=0;
+}
+function clsVotes(x,y){
+  const f=S.clf,w=S.w,m=S.core||S.mask,votes=new Array(f.K).fill(0),r=Math.max(2,Math.round(markerR()*.45));
+  for(let yy=Math.max(0,Math.round(y)-r);yy<=Math.min(S.h-1,Math.round(y)+r);yy++)
+    for(let xx=Math.max(0,Math.round(x)-r);xx<=Math.min(w-1,Math.round(x)+r);xx++){const i=yy*w+xx;if(m[i])votes[f.at(i)]++}
+  return votes;
+}
+// Klasse an einer Stelle: Mehrheit der Kornbildpunkte im Umfeld
+function clsAt(x,y){
+  const f=S.clf;if(!f)return 0;
+  // nur Kornkern (geschrumpfte Maske): Schatten und Kanten zwischen Körnern stimmen nicht mit
+  const w=S.w,m=S.core||S.mask,votes=new Int32Array(f.K),r=Math.max(2,Math.round(markerR()*.45));let any=0;
+  for(let yy=Math.max(0,Math.round(y)-r);yy<=Math.min(S.h-1,Math.round(y)+r);yy++)
+    for(let xx=Math.max(0,Math.round(x)-r);xx<=Math.min(w-1,Math.round(x)+r);xx++){const i=yy*w+xx;if(m[i]){votes[f.at(i)]++;any++}}
+  if(!any)return f.at(Math.round(y)*w+Math.round(x));
+  let b=0;for(let k=1;k<f.K;k++)if(votes[k]>votes[b])b=k;return b;
+}
+// Zwei Helligkeitsgruppen finden (k-means mit k=2). Nur wenn sie klar getrennt sind, gibt es hell/dunkel.
+function splitDark(v){
+  if(v.length<6)return null;
+  let a=Infinity,b=-Infinity;for(const x of v){if(x<a)a=x;if(x>b)b=x}
+  for(let it=0;it<20;it++){let sa=0,na=0,sb=0,nb=0;const t=(a+b)/2;
+    for(const x of v){if(x<t){sa+=x;na++}else{sb+=x;nb++}}
+    if(!na||!nb)return null;a=sa/na;b=sb/nb}
+  const t=(a+b)/2;let nd=0;for(const x of v)if(x<t)nd++;
+  return (b-a)>=40&&nd>=v.length*0.01&&nd<=v.length*0.99?t:null;
+}
+function lumAt(x,y){const r=2,w=S.w;let s=0,n=0;
+  for(let yy=Math.max(0,Math.round(y)-r);yy<=Math.min(S.h-1,Math.round(y)+r);yy++)
+    for(let xx=Math.max(0,Math.round(x)-r);xx<=Math.min(w-1,Math.round(x)+r);xx++){s+=S.L[yy*w+xx];n++}
+  return n?s/n:0}
+function inPoly(x,y,P){let c=false;
+  for(let i=0,j=P.length-1;i<P.length;j=i++){const a=P[i],b=P[j];
+    if((a.y>y)!==(b.y>y)&&x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)c=!c}
+  return c}
+// k Markierungen über einen Haufen verteilen (k-means auf den Bildpunkten)
+function spread(c,k){
+  if(k<=0)return [];
+  if(k===1)return [{x:c.cx,y:c.cy}];
+  if(!c.px){const a=[];const lab=S.lab;for(let i=0;i<lab.length;i++)if(lab[i]===c.id)a.push(i);c.px=a}
+  if(!c.px.length)return Array.from({length:k},()=>({x:c.cx,y:c.cy}));
+  if(c.ptsK===k)return c.pts;
+  const w=S.w,px=c.px,step=Math.max(1,Math.floor(px.length/1500)),X=[],Y=[];
+  for(let i=0;i<px.length;i+=step){const p=px[i],x=p%w;X.push(x);Y.push((p-x)/w)}
+  // Startpunkte: am weitesten voneinander entfernt
+  let cs=[];let far=0,fd=-1;for(let i=0;i<X.length;i++){const d=(X[i]-c.cx)**2+(Y[i]-c.cy)**2;if(d>fd){fd=d;far=i}}
+  cs.push({x:X[far],y:Y[far]});
+  const dmin=new Float32Array(X.length).fill(Infinity);
+  while(cs.length<k){const l=cs[cs.length-1];let bi=0,bd=-1;
+    for(let i=0;i<X.length;i++){const d=(X[i]-l.x)**2+(Y[i]-l.y)**2;if(d<dmin[i])dmin[i]=d;if(dmin[i]>bd){bd=dmin[i];bi=i}}
+    cs.push({x:X[bi],y:Y[bi]})}
+  const as=new Int32Array(X.length);
+  for(let it=0;it<10;it++){
+    for(let i=0;i<X.length;i++){let b=0,bd=Infinity;for(let j=0;j<k;j++){const d=(X[i]-cs[j].x)**2+(Y[i]-cs[j].y)**2;if(d<bd){bd=d;b=j}}as[i]=b}
+    const sx=new Float64Array(k),sy=new Float64Array(k),n=new Int32Array(k);
+    for(let i=0;i<X.length;i++){sx[as[i]]+=X[i];sy[as[i]]+=Y[i];n[as[i]]++}
+    for(let j=0;j<k;j++)if(n[j])cs[j]={x:sx[j]/n[j],y:sy[j]/n[j]};
+  }
+  c.ptsK=k;c.pts=cs;return cs;
+}
+let raf=0;const schedule=()=>{if(!raf)raf=requestAnimationFrame(()=>{raf=0;run()})};
+
+/* ---------- Korrekturen ---------- */
+function markerR(){return Math.max(5,Math.min(40,Math.sqrt((S.medianA||S.median)/Math.PI)*0.6))}
+function delta(c){const r2=(markerR()*1.4)**2;let d=0;for(const a of S.adj)if((a.x-c.cx)**2+(a.y-c.cy)**2<r2)d+=a.d;return d}
+function eff(c){return Math.max(0,c.n+delta(c))}
+const cssPx=()=>{const b=cv.getBoundingClientRect();return S.w/(b.width||S.w)}; // Bildpunkte je Bildschirmpunkt
+
+/* ---------- Darstellung ---------- */
+const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function render(){
+  if(!S.src)return;
+  const {w,h}=S;ctx.clearRect(0,0,w,h);
+  const view=S.view;
+  if(view==='mask'&&S.mask){
+    const im=ctx.createImageData(w,h);const m=S.mask,d=im.data;
+    for(let i=0,j=0;i<m.length;i++,j+=4){const v=m[i]?235:28;d[j]=d[j+1]=d[j+2]=v;d[j+3]=255}
+    ctx.putImageData(im,0,0);
+  } else {
+    ctx.drawImage(S.src,0,0);
+    if(view==='check'){ctx.fillStyle='rgba(10,12,14,.62)';ctx.fillRect(0,0,w,h)}
+  }
+
+  const px=S.minPx??cssPx(),r=Math.max(markerR(),4.5*px),lw=Math.max(1.5*px,r*0.22);
+  const C={mark:tok('--mark'),clump:tok('--clump'),small:tok('--small'),hand:tok('--grain'),off:tok('--off')};
+  const f=S.clf,cls=f&&S.cls!=='all'&&+S.cls<f.K?+S.cls:-1;
+  let single=0,clump=0,small=0,plus=0,minus=0;const per=new Array(f?f.K:1).fill(0);
+  // Form je Klasse: Kreis, Quadrat, Dreieck
+  const shape=(x,y,rr,k)=>{ctx.beginPath();
+    if(k===1){const q=rr*.88;ctx.rect(x-q,y-q,2*q,2*q)}
+    else if(k===2){ctx.moveTo(x,y-rr*1.1);ctx.lineTo(x+rr*1.05,y+rr*.75);ctx.lineTo(x-rr*1.05,y+rr*.75);ctx.closePath()}
+    else ctx.arc(x,y,rr,0,7)};
+  const want=k=>cls<0||k===cls;
+  const simple=S.tab==='count'||S.tab==='start';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const c of S.comps){
+    const e=eff(c),dd=e-c.n;
+    if(dd>0)plus+=dd;else minus-=dd;
+    const isSmall=c.small&&e===1,showSmall=isSmall&&S.tab!=='count'&&S.tab!=='start';
+    // Je Korn ein Punkt; bei Haufen verteilt
+    const pts=spread(c,e).map(p=>({x:p.x,y:p.y}));
+    if(!f)pts.forEach(p=>p.k=0);
+    else if(pts.length===1)pts[0].k=clsAt(pts[0].x,pts[0].y);
+    else{const key=e+'|'+S.clfVer;if(c.ck!==key){assignClump(c,pts);c.ck=key;c.cks=pts.map(p=>p.k)}else pts.forEach((p,i)=>p.k=c.cks[i])}
+    let counted=0;
+    for(const p of pts){p.ok=want(p.k);if(e>0)per[p.k]++;if(p.ok)counted++}
+    if(e>0){if(isSmall)small+=counted;else if(e>1)clump+=counted;else single+=counted}
+    if(view==='check'){
+      if(e===0)continue;
+      if(isSmall&&pts[0].ok){
+        ctx.fillStyle='rgba(255,255,255,.18)';ctx.beginPath();ctx.arc(c.cx,c.cy,r*1.6,0,7);ctx.fill();
+        ctx.strokeStyle='#fff';ctx.lineWidth=lw*1.6;ctx.beginPath();ctx.arc(c.cx,c.cy,r*1.6,0,7);ctx.stroke();
+        ctx.strokeStyle=C.small;ctx.lineWidth=lw*1.1;ctx.beginPath();ctx.arc(c.cx,c.cy,r*1.6,0,7);ctx.stroke();
+        ctx.fillStyle='#fff';ctx.font=`700 ${Math.max(11,r)}px JetBrains Mono, monospace`;ctx.fillText('K',c.cx,c.cy-r*2.4);
+      } else for(const p of pts){ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.arc(p.x,p.y,r*.35,0,7);ctx.fill()}
+      continue;
+    }
+    ctx.setLineDash([]);
+    if(e===0){
+      ctx.lineWidth=lw;ctx.strokeStyle=C.off;ctx.beginPath();ctx.arc(c.cx,c.cy,r,0,7);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(c.cx-r*.7,c.cy-r*.7);ctx.lineTo(c.cx+r*.7,c.cy+r*.7);ctx.stroke();
+      continue;
+    }
+    if(simple){
+      // Sammelpunkte: nahe beieinander liegende Körner eines Haufens zusammenfassen
+      const groups=[];const d2=(r*1.6)**2;
+      for(const p of pts){const g=groups.find(g=>(g.x-p.x)**2+(g.y-p.y)**2<d2);
+        if(g){g.x=(g.x*g.n+p.x)/(g.n+1);g.y=(g.y*g.n+p.y)/(g.n+1);g.n++}else groups.push({x:p.x,y:p.y,n:1})}
+      for(const g of groups){
+        ctx.lineWidth=lw;ctx.strokeStyle='rgba(0,0,0,.6)';
+        if(g.n>1){const rg=r*1.05;ctx.beginPath();ctx.arc(g.x,g.y,rg+lw*.6,0,7);ctx.stroke();
+          ctx.fillStyle=C.mark;ctx.beginPath();ctx.arc(g.x,g.y,rg,0,7);ctx.fill();
+          ctx.fillStyle='#fff';ctx.font=`700 ${Math.max(11,r*1.15)}px JetBrains Mono, monospace`;ctx.fillText(g.n,g.x,g.y+1)}
+        else{ctx.beginPath();ctx.arc(g.x,g.y,r+lw*.6,0,7);ctx.stroke();ctx.strokeStyle=C.mark;ctx.beginPath();ctx.arc(g.x,g.y,r,0,7);ctx.stroke()}
+        if(dd!==0){ctx.strokeStyle=C.hand;ctx.lineWidth=lw*.8;ctx.beginPath();ctx.arc(g.x,g.y,(g.n>1?r*1.05:r)+lw*1.6,0,7);ctx.stroke()}
+      }
+      continue;
+    }
+    const rr=e>1?r*.72:r;
+    for(const p of pts){
+      ctx.globalAlpha=p.ok?1:.35;
+      ctx.lineWidth=lw;ctx.strokeStyle='rgba(0,0,0,.6)';shape(p.x,p.y,rr+lw*.6,p.k);ctx.stroke();
+      if(showSmall){ctx.strokeStyle=C.small;ctx.setLineDash([r*.5,r*.35]);shape(p.x,p.y,rr,p.k);ctx.stroke();ctx.setLineDash([])}
+      else if(e>1){ctx.fillStyle=C.clump;shape(p.x,p.y,rr,p.k);ctx.fill()}
+      else{ctx.strokeStyle=C.mark;shape(p.x,p.y,rr,p.k);ctx.stroke()}
+      if(dd!==0){ctx.strokeStyle=C.hand;ctx.lineWidth=lw*.8;shape(p.x,p.y,rr+lw*1.6,p.k);ctx.stroke()}
+      ctx.globalAlpha=1;
+    }
+  }
+  for(const p of S.added){
+    const k=f?clsAt(p.x,p.y):0;per[k]++;
+    const ok=want(k);
+    if(ok)single++;
+    if(view==='check')continue;
+    ctx.globalAlpha=ok?1:.35;
+    const kk=simple?0:k;
+    ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=lw*1.6;shape(p.x,p.y,r,kk);ctx.stroke();
+    ctx.strokeStyle=C.hand;ctx.lineWidth=lw;shape(p.x,p.y,r,kk);ctx.stroke();
+    ctx.fillStyle=C.hand;ctx.beginPath();ctx.arc(p.x,p.y,r*.3,0,7);ctx.fill();
+    ctx.globalAlpha=1;
+  }
+  plus+=S.added.length;
+  drawRoi();
+  const full=single+clump, all=full+small;
+  const tot=per.reduce((a,b)=>a+b,0);
+  S.counts={single,clump,small,full,all,plus,minus,classes:f?f.names.map((nm,k)=>({name:nm,count:per[k]})):null};
+  const parts=[];
+  if(f&&cls<0&&!simple)parts.push(f.names.map((nm,k)=>`<b>${fmt(per[k])}</b> ${escH(nm)}${k===f.K-1&&tot?'':''}`).join(' · ')+(f.K===2&&tot?` (${(per[1]/tot*100).toLocaleString('de-DE',{maximumFractionDigits:1})} % ${escH(f.names[1])})`:''));
+  if(f&&cls>=0)parts.push(`nur <b>${escH(f.names[cls])}</b>`);
+  if(clump)parts.push(`<b>${fmt(simple?single+small:single)}</b> einzeln · <b>${fmt(clump)}</b> in Gruppen geschätzt`);
+  if(small&&S.tab!=='count'&&S.tab!=='start')parts.push(`<b>${fmt(small)}</b> Kleinkorn${S.basis==='full'?' raus':''}`);
+  if(plus||minus)parts.push(`<b>+${plus}/−${minus}</b> von Hand`);
+  $('breakdown').innerHTML=parts.join(' · ')||'Alle Körner einzeln erkannt';
+  $('resetEdits').hidden=!(S.adj.length||S.added.length);
+  $('roiReset').hidden=!(S.roi&&S.tool==='roi'&&S.editing);
+  $('undoBtn').disabled=!S.hist.length;
+  renderClassUI(per);
+  $('shareO').textContent=all?`${fmt(small)} Stück · ${(small/all*100).toLocaleString('de-DE',{maximumFractionDigits:1})} %`:'';
+  updResult();
+}
+// Zählbereich auf eigener Ebene: beim Ziehen wird nur diese neu gezeichnet
+let roiRaf=0;
+function drawRoi(){cancelAnimationFrame(roiRaf);roiRaf=requestAnimationFrame(drawRoiNow)}
+function drawRoiNow(){
+  const w=S.w,h=S.h,R=S.roi;octx.clearRect(0,0,w,h);if(!R)return;
+  const k=cssPx();
+  octx.save();
+  octx.beginPath();octx.rect(0,0,w,h);octx.moveTo(R[0].x,R[0].y);for(const p of R)octx.lineTo(p.x,p.y);octx.closePath();
+  octx.fillStyle='rgba(0,0,0,.5)';octx.fill('evenodd');
+  octx.lineJoin='round';
+  octx.beginPath();R.forEach((p,i)=>i?octx.lineTo(p.x,p.y):octx.moveTo(p.x,p.y));octx.closePath();
+  octx.strokeStyle='#fff';octx.lineWidth=1.6*k;octx.stroke();
+  octx.setLineDash([6*k,6*k]);octx.strokeStyle='#000';octx.stroke();octx.setLineDash([]);
+  if(S.editing&&S.tool==='roi'){
+    R.forEach((p,i)=>{const q=R[(i+1)%R.length],mx=(p.x+q.x)/2,my=(p.y+q.y)/2;
+      octx.fillStyle='rgba(255,255,255,.85)';octx.beginPath();octx.arc(mx,my,5*k,0,7);octx.fill();
+      octx.strokeStyle='#000';octx.lineWidth=1.2*k;octx.stroke()});
+    for(const p of R){octx.fillStyle='#fff';octx.beginPath();octx.arc(p.x,p.y,8*k,0,7);octx.fill();
+      octx.strokeStyle='#000';octx.lineWidth=1.6*k;octx.stroke()}
+  }
+  octx.restore();
+}
+// Schnelle Schätzung während des Ziehens (ohne neue Auswertung)
+let lc=0;
+function liveCount(){cancelAnimationFrame(lc);lc=requestAnimationFrame(()=>{
+  const med=S.median,R=S.roi;let n=0;
+  for(const c of S.allComps||[]){if(c.ao<med*DUST||!inPoly(c.cx,c.cy,R))continue;n+=c.ao>1.5*med?Math.max(2,Math.round(c.ao/med)):1}
+  $('liveN').textContent='≈ '+fmt(n);
+})}
+function currentN(){const c=S.counts;return c?(S.basis==='all'?c.all:c.full):0}
+function currentTKG(){if(!S.basisOk)return null;const wt=parseFloat(String($('weight').value).replace(',','.'));const n=currentN();return (wt>0&&n>0)?{wt,tkg:wt/n*1000}:null}
+function updResult(){
+  if(!S.counts)return;
+  const n=fmt(currentN());
+  $('total').textContent=n;$('liveN').textContent=n;
+  const f=S.clf,k=f&&S.cls!=='all'&&+S.cls<f.K?f.names[+S.cls]+' · ':'';
+  const lbl=k+(S.basis==='all'?'Körner':'ohne Kleinkorn');
+  $('totalLabel').textContent=lbl;$('liveL').textContent=lbl;
+  const t=currentTKG();
+  $('tkgBar').innerHTML=t?fmtG(t.tkg)+' <small>g</small>':'– <small>g</small>';
+  $('tkgVal').textContent=t?fmtG(t.tkg)+' g':'– g';
+  document.querySelectorAll('.basisSeg').forEach(g=>[...g.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===S.basis))));
+}
+
+/* ---------- Bearbeiten im Vollbild ---------- */
+function polyBox(P){let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;for(const p of P){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y)}return {x0,y0,x1,y1}}
+function fitTo(b,pad){
+  S.fit={b,pad};
+  const r=stage.getBoundingClientRect();if(!r.width)return;
+  pad=pad??(S.editing?0.12:0.04);
+  const bw=(b.x1-b.x0)*(1+2*pad),bh=(b.y1-b.y0)*(1+2*pad);
+  const availH=r.height-(S.editing?140:0);
+  const s=Math.min(8,Math.max(1,Math.min(r.width/(bw*Z.base),availH/(bh*Z.base))));
+  Z.s=s;const cx=(b.x0+b.x1)/2*Z.base*s,cy=(b.y0+b.y1)/2*Z.base*s;
+  Z.x=r.width/2-cx;Z.y=(S.editing?availH/2+50:r.height/2)-cy;apply();
+}
+function setEditing(on){
+  S.editing=on;stage.classList.toggle('full',on);
+  const lockRoi=S.tab!=='count'&&S.tab!=='start';stage.classList.toggle('noroi',lockRoi);if(lockRoi&&S.tool==='roi')setTool(null);
+  if(on&&S.pickFor===null)setTool(null);
+  stage.setAttribute('aria-label',on?'Bearbeiten: Tippen fügt hinzu oder entfernt je nach Werkzeug.':'Foto mit Zählmarkierungen. Tippen öffnet Bearbeiten.');
+  Z.s=1;S.fit=null;
+  requestAnimationFrame(()=>{layout();if(S.roi)fitTo(polyBox(S.roi));else if(S.comps.length>=5)fitTo(countedBox(),on?0.08:0.04);render()});
+  if(on)$('doneBtn').focus();
+}
+$('editBtn').onclick=()=>setEditing(true);
+$('doneBtn').onclick=()=>{endPick();setEditing(false)};
+// Alles, was gezählt wird: Zählbereich oder sämtliche erkannten und ergänzten Körner
+function countedBox(){
+  if(S.roi)return polyBox(S.roi);
+  if(!S.comps.length&&!S.added.length)return {x0:0,y0:0,x1:S.w,y1:S.h};
+  let b={x0:Infinity,y0:Infinity,x1:-Infinity,y1:-Infinity};
+  for(const p of [...S.comps.map(c=>({x:c.cx,y:c.cy})),...S.added]){b.x0=Math.min(b.x0,p.x);b.y0=Math.min(b.y0,p.y);b.x1=Math.max(b.x1,p.x);b.y1=Math.max(b.y1,p.y)}
+  const m=markerR()*4;
+  return {x0:Math.max(0,b.x0-m),y0:Math.max(0,b.y0-m),x1:Math.min(S.w,b.x1+m),y1:Math.min(S.h,b.y1+m)};
+}
+function coreBox(){
+  let b={x0:S.w*.08,y0:S.h*.08,x1:S.w*.92,y1:S.h*.92};
+  if(S.comps.length>=5){
+    // Kern der Probe: einzelne verstreute Körner am Rand bleiben draußen
+    const med=a=>{const s=[...a].sort((u,v)=>u-v);return s[s.length>>1]};
+    const mx=med(S.comps.map(c=>c.cx)),my=med(S.comps.map(c=>c.cy));
+    const ds=S.comps.map(c=>Math.hypot(c.cx-mx,c.cy-my)),lim=2.2*med(ds);
+    b={x0:Infinity,y0:Infinity,x1:-Infinity,y1:-Infinity};
+    S.comps.forEach((c,i)=>{if(ds[i]<=lim){b.x0=Math.min(b.x0,c.cx);b.y0=Math.min(b.y0,c.cy);b.x1=Math.max(b.x1,c.cx);b.y1=Math.max(b.y1,c.cy)}});
+    const m=markerR()*4;
+    b={x0:Math.max(0,b.x0-m),y0:Math.max(0,b.y0-m),x1:Math.min(S.w,b.x1+m),y1:Math.min(S.h,b.y1+m)}}
+  return b;
+}
+const toolHints={add:'Tippe auf ein Korn ohne Markierung. In einer Gruppe zählt jeder Tipp ein Korn dazu.',remove:'Tippe auf eine Markierung. In einer Gruppe zählt jeder Tipp ein Korn weniger.',roi:'Ecken ziehen verschiebt sie. „+“ auf einer Kante ziehen macht eine neue Ecke. Ecke antippen löscht sie.'};
+function setTool(v){S.tool=v;[...$('tool').children].forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===v));hint(v?toolHints[v]:'Kein Werkzeug aktiv: zoomen und verschieben.');$('roiReset').hidden=!(S.roi&&v==='roi');
+  if(v==='roi'&&!S.roi&&S.src){
+    const b=coreBox();
+    S.hist.push({t:'roi',prev:null});
+    S.roi=[{x:b.x0,y:b.y0},{x:b.x1,y:b.y0},{x:b.x1,y:b.y1},{x:b.x0,y:b.y1}];
+    run();fitTo(b);
+  } else render();
+}
+$('tool').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setTool(S.tool===b.dataset.v?null:b.dataset.v)});
+$('roiReset').onclick=()=>{if(!S.roi)return;S.hist.push({t:'roi',prev:S.roi});S.roi=null;S.fit=null;run();hint('Zählbereich entfernt. Mit „Bereich“ neu anlegen.',true)};
+function toImg(cx,cy){const b=cv.getBoundingClientRect();
+  return {x:Math.min(S.w,Math.max(0,(cx-b.left)*S.w/b.width)),y:Math.min(S.h,Math.max(0,(cy-b.top)*S.h/b.height))}}
+let hintT=0;
+function hint(t,flash){const h=$('edithint');h.textContent=t;h.classList.toggle('flash',!!flash);clearTimeout(hintT);
+  if(flash)hintT=setTimeout(()=>{h.classList.remove('flash');h.textContent=S.tool?toolHints[S.tool]:'Kein Werkzeug aktiv: zoomen und verschieben.'},2200)}
+$('undoBtn').onclick=()=>{const a=S.hist.pop();if(!a)return;
+  if(a.t==='adj')S.adj.splice(S.adj.lastIndexOf(a.ref),1);
+  else if(a.t==='add')S.added.splice(S.added.lastIndexOf(a.ref),1);
+  else if(a.t==='del')S.added.splice(a.i,0,a.ref);
+  else if(a.t==='roi'){S.roi=a.prev;return run()}
+  render()};
+$('resetEdits').onclick=()=>{S.adj=[];S.added=[];S.hist=S.hist.filter(a=>a.t==='roi');render()};
+
+function editAt(x,y,hitR){
+  const r2=hitR*hitR;
+  // nächste Markierung: Einzelkorn, Punkt in einem Haufen oder entferntes Korn
+  let bestC=null,dc=r2;
+  for(const c of S.comps){const e=eff(c);const pts=e>0?spread(c,e):[{x:c.cx,y:c.cy}];
+    for(const p of pts){const d=(p.x-x)**2+(p.y-y)**2;if(d<dc){dc=d;bestC=c}}}
+  let bestA=-1,da=r2;S.added.forEach((p,i)=>{const d=(p.x-x)**2+(p.y-y)**2;if(d<da){da=d;bestA=i}});
+  // Tipp in einen Haufen hinein, auch neben den Punkten
+  if(!bestC){const id=S.lab[Math.round(y)*S.w+Math.round(x)];if(id)bestC=S.comps.find(c=>c.id===id)||null;if(bestC)dc=0}
+  if(S.tool==='add'){
+    if(bestC&&dc<=da){const ref={x:bestC.cx,y:bestC.cy,d:1};S.adj.push(ref);S.hist.push({t:'adj',ref})}
+    else{const ref={x,y};S.added.push(ref);S.hist.push({t:'add',ref})}
+  } else {
+    if(bestA>=0&&da<=dc){const ref=S.added.splice(bestA,1)[0];S.hist.push({t:'del',ref,i:bestA})}
+    else if(bestC&&eff(bestC)>0){const ref={x:bestC.cx,y:bestC.cy,d:-1};S.adj.push(ref);S.hist.push({t:'adj',ref})}
+    else{hint('Hier ist keine Markierung zum Entfernen.',true);return}
+  }
+  if(navigator.vibrate)try{navigator.vibrate(8)}catch(e){}
+  render();
+}
+function tap(clientX,clientY){
+  if(!S.src)return;
+  if(!S.editing)return;
+  if(!S.tool&&S.pickFor===null){hint('Werkzeug unten wählen: Korn setzen, Korn löschen oder Bereich.',true);return}
+  const b=cv.getBoundingClientRect();
+  const x=(clientX-b.left)*S.w/b.width,y=(clientY-b.top)*S.h/b.height;
+  if(S.pickFor!==null){if(x>=0&&y>=0&&x<S.w&&y<S.h)pickAt(x,y);return}
+  if(S.tool==='roi'){hint(toolHints.roi,true);return}
+  if(x<0||y<0||x>S.w||y>S.h)return;
+  editAt(x,y,Math.max(markerR()*1.2,20*S.w/b.width));
+}
+// Griff des Zählbereichs unter dem Finger
+function hitHandle(cx,cy){
+  if(!S.roi||!S.editing||S.tool!=='roi')return null;
+  const p=toImg(cx,cy),k=cssPx(),R=S.roi,r2=(28*k)**2;let best=null,bd=r2;
+  R.forEach((v,i)=>{const d=(v.x-p.x)**2+(v.y-p.y)**2;if(d<bd){bd=d;best={t:'v',i}}});
+  if(best)return best;bd=(22*k)**2;
+  R.forEach((v,i)=>{const q=R[(i+1)%R.length],d=((v.x+q.x)/2-p.x)**2+((v.y+q.y)/2-p.y)**2;if(d<bd){bd=d;best={t:'m',i}}});
+  return best;
+}
+
+/* ---------- Zoom ---------- */
+const Z={s:1,x:0,y:0,base:1};
+function layout(){
+  if(!S.w)return;
+  const r=stage.getBoundingClientRect();
+  Z.base=Math.min(r.width/S.w,r.height/S.h)||1;
+  for(const c of [cv,ovc]){c.style.width=S.w*Z.base+'px';c.style.height=S.h*Z.base+'px'}
+  if(S.fit)fitTo(S.fit.b,S.fit.pad);else apply();
+  reRenderSoon(); // Markergröße an neue Bildgröße anpassen
+}
+function clampZ(){
+  const r=stage.getBoundingClientRect(),W=S.w*Z.base*Z.s,H=S.h*Z.base*Z.s;
+  const pad=S.editing?120:0; // im Vollbild darf das Bild unter die Werkzeugleiste geschoben werden
+  Z.x=W<=r.width?(r.width-W)/2:Math.min(0,Math.max(r.width-W,Z.x));
+  Z.y=H<=r.height-pad?(r.height-pad-H)/2:Math.min(pad/2,Math.max(r.height-H-pad,Z.y));
+}
+let zr=0;
+function apply(){
+  clampZ();
+  cv.style.transform=ovc.style.transform=`translate(${Z.x}px,${Z.y}px) scale(${Z.s})`;
+  const zoomed=Z.s>1.02;
+
+  if(S.roi&&S.editing&&S.tool==='roi')drawRoi(); // Griffe bleiben gleich groß
+}
+var zrr=0;function reRenderSoon(){clearTimeout(zrr);zrr=setTimeout(()=>S.src&&S.counts&&render(),180)}
+function zoomAt(px,py,ns){S.fit=null;reRenderSoon();ns=Math.min(8,Math.max(1,ns));const k=ns/Z.s;Z.x=px-(px-Z.x)*k;Z.y=py-(py-Z.y)*k;Z.s=ns;apply()}
+new ResizeObserver(layout).observe(stage);
+function zoomReset(){S.fit=null;Z.s=1;apply();reRenderSoon()}
+stage.addEventListener('wheel',e=>{e.preventDefault();const r=stage.getBoundingClientRect();
+  zoomAt(e.clientX-r.left,e.clientY-r.top,Z.s*Math.exp(-e.deltaY*0.0015))},{passive:false});
+
+const P=new Map();let G=null;
+const mid=()=>{const v=[...P.values()];return {x:(v[0].x+v[1].x)/2,y:(v[0].y+v[1].y)/2,d:Math.hypot(v[0].x-v[1].x,v[0].y-v[1].y)||1}};
+stage.addEventListener('pointerdown',e=>{
+  if(e.target.closest('button,.drop,.editbar,.vs,.vicon'))return;
+  document.querySelectorAll('.vs.open .vtitle').forEach(b=>b.click());
+  stage.setPointerCapture(e.pointerId);
+  P.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(P.size===1)G={sx:e.clientX,sy:e.clientY,px:Z.x,py:Z.y,moved:false,multi:false,handle:hitHandle(e.clientX,e.clientY),prev:S.roi&&S.roi.map(p=>({...p}))};
+  else if(P.size===2&&G){G.multi=true;if(G.handle&&G.moved){S.hist.push({t:'roi',prev:G.prev});run()}G.handle=null;G.pinch={m:mid(),s:Z.s,x:Z.x,y:Z.y}}
+});
+stage.addEventListener('pointermove',e=>{
+  if(!P.has(e.pointerId)||!G)return;
+  P.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  const r=stage.getBoundingClientRect();
+  if(P.size>=2&&G.pinch){
+    const m=mid(),p=G.pinch;const ns=Math.min(8,Math.max(1,p.s*m.d/p.m.d));
+    const cx=(p.m.x-r.left-p.x)/p.s,cy=(p.m.y-r.top-p.y)/p.s;
+    S.fit=null;Z.s=ns;Z.x=m.x-r.left-cx*ns;Z.y=m.y-r.top-cy*ns;apply();reRenderSoon();
+  } else if(P.size===1){
+    const dx=e.clientX-G.sx,dy=e.clientY-G.sy;
+    if(!G.moved&&Math.hypot(dx,dy)>6)G.moved=true;
+    if(G.moved&&G.handle){
+      const p=toImg(e.clientX,e.clientY);
+      if(G.handle.t==='m'){S.roi.splice(G.handle.i+1,0,p);G.handle={t:'v',i:G.handle.i+1}}
+      S.roi[G.handle.i]=p;drawRoi();liveCount();
+    }
+    else if(G.moved&&Z.s>1.02){S.fit=null;Z.x=G.px+dx;Z.y=G.py+dy;apply()}
+  }
+});
+const endPtr=e=>{
+  if(!P.has(e.pointerId))return;
+  P.delete(e.pointerId);
+  if(P.size===1&&G){const v=[...P.values()][0];G.sx=v.x;G.sy=v.y;G.px=Z.x;G.py=Z.y;G.pinch=null;G.moved=true}
+  if(P.size===0&&G){
+    if(G.handle){
+      if(G.moved){S.hist.push({t:'roi',prev:G.prev});run()}
+      else if(G.handle.t==='v'&&e.type==='pointerup'){
+        if(S.roi.length>3){S.hist.push({t:'roi',prev:G.prev});S.roi.splice(G.handle.i,1);run()}
+        else hint('Ein Bereich braucht mindestens drei Ecken.',true)}
+      else if(G.handle.t==='m')hint('„+“ ziehen, um eine neue Ecke zu setzen.',true);
+      else drawRoi();
+    }
+    else if(!G.moved&&!G.multi&&e.type==='pointerup'){
+      const now=performance.now(),lt=S.lastTap;
+      if(lt&&now-lt.t<320&&Math.hypot(e.clientX-lt.x,e.clientY-lt.y)<30){
+        if(lt.edited&&S.hist.length&&S.hist[S.hist.length-1]===lt.edited)$('undoBtn').click(); // erster Tipp war kein Bearbeiten
+        S.lastTap=null;zoomReset();
+      } else {const h0=S.hist[S.hist.length-1];tap(e.clientX,e.clientY);const h1=S.hist[S.hist.length-1];
+        S.lastTap={t:now,x:e.clientX,y:e.clientY,edited:h1!==h0?h1:null}}
+    }
+    G=null}
+};
+stage.addEventListener('pointerup',endPtr);stage.addEventListener('pointercancel',endPtr);
+
+/* ---------- Reiter ---------- */
+function setView(v){S.view=v;$('hl').checked=v==='check';render()}
+$('hl').addEventListener('change',()=>setView($('hl').checked?'check':'photo'));
+// Regler-Popups am Bildrand
+document.querySelectorAll('.vicon').forEach(b=>b.addEventListener('click',()=>{
+  const vs=document.querySelector(`.vs[data-for="${b.dataset.open}"]`);vs.classList.add('open');b.classList.add('hide');vs.focus()}));
+document.querySelectorAll('.vtitle').forEach(b=>b.addEventListener('click',()=>{
+  const vs=b.closest('.vs');vs.classList.remove('open');document.querySelector(`.vicon[data-open="${vs.dataset.for}"]`).classList.remove('hide')}));
+function selectTab(t){
+  if(S.tab==='small'&&t!=='small'&&S.view==='check')setView('photo');
+  S.tab=t;stage.classList.toggle('tune',t==='count');$('dock').dataset.tab=t;
+  [...$('tabs').children].forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===t));
+  document.querySelectorAll('.pane').forEach(p=>p.hidden=p.dataset.pane!==t);
+  $('dock').classList.remove('collapsed');
+  if(S.src)render();
+}
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  const dock=$('dock');
+  if(b.getAttribute('aria-selected')==='true'&&!dock.classList.contains('collapsed')){dock.classList.add('collapsed');b.setAttribute('aria-expanded','false');return}
+  selectTab(b.dataset.tab);b.setAttribute('aria-expanded','true')});
+
+/* ---------- Regler ---------- */
+const fmtOut={sens:v=>v,sep:v=>v,small:v=>v==0?'aus':v+' %'};
+function sync(id){$(id+'O').textContent=fmtOut[id]($(id).value);
+  const vs=document.querySelector(`.vs[data-for="${id}"]`);
+  if(vs){const el=$(id),f=(el.value-el.min)/(el.max-el.min);
+    vs.querySelector('.vval').textContent=el.value;vs.querySelector('.vfill').style.height=f*100+'%';
+    vs.querySelector('.vthumb').style.top=(1-f)*100+'%';vs.setAttribute('aria-valuenow',el.value)}}
+document.querySelectorAll('.vs').forEach(vs=>{
+  const el=$(vs.dataset.for),step=+vs.dataset.step,track=vs.querySelector('.vtrack');
+  const set=v=>{v=Math.min(+el.max,Math.max(+el.min,Math.round(v/step)*step));if(v!==+el.value){el.value=v;sync(el.id);schedule()}};
+  const fromY=y=>{const r=track.getBoundingClientRect();set(+el.min+(1-(y-r.top)/r.height)*(el.max-el.min))};
+  let drag=false,sy=0,sv=0;
+  track.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();drag=true;sy=e.clientY;sv=+el.value;track.setPointerCapture(e.pointerId);fromY(e.clientY)});
+  track.addEventListener('pointermove',e=>{if(drag)fromY(e.clientY)});
+  ['pointerup','pointercancel'].forEach(t=>track.addEventListener(t,()=>{drag=false}));
+  vs.querySelectorAll('.vsb').forEach(b=>{let hold=null,rep=null,repeated=false;
+    const bump=()=>set(+el.value+(+b.dataset.d)*step);
+    const stop=()=>{clearTimeout(hold);clearInterval(rep)};
+    b.addEventListener('pointerdown',e=>{e.stopPropagation();repeated=false;stop();hold=setTimeout(()=>{repeated=true;bump();rep=setInterval(bump,110)},450)});
+    ['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,stop));
+    b.addEventListener('click',()=>{if(repeated){repeated=false;return}bump()})});
+  vs.addEventListener('keydown',e=>{const d={ArrowUp:1,ArrowRight:1,ArrowDown:-1,ArrowLeft:-1}[e.key];if(d){e.preventDefault();set(+el.value+d*step)}});
+});
+['sens','sep','small'].forEach(id=>{$(id).addEventListener('input',()=>{sync(id);schedule()});sync(id)});
+S.tab='start';
+document.querySelectorAll('.step').forEach(b=>{
+  const el=$(b.dataset.for),d=+b.dataset.d;let hold=null,rep=null,repeated=false;
+  const bump=()=>{const v=Math.min(+el.max,Math.max(+el.min,+el.value+d));
+    if(v!==+el.value){el.value=v;sync(el.id);schedule()}};
+  const stop=()=>{clearTimeout(hold);clearInterval(rep);hold=rep=null};
+  b.addEventListener('pointerdown',()=>{repeated=false;stop();hold=setTimeout(()=>{repeated=true;bump();rep=setInterval(bump,110)},450)});
+  ['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,stop));
+  b.addEventListener('click',()=>{if(repeated){repeated=false;return}bump()});
+  b.addEventListener('contextmenu',e=>e.preventDefault());
+});
+function segment(id,key,after){
+  $(id).addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    S[key]=b.dataset.v;[...$(id).children].forEach(x=>x.setAttribute('aria-pressed',x===b));after(b.dataset.v)})}
+$('cls').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.cls=b.dataset.v;render()});
+segment('cmode','cmode',()=>{S.cmodeAuto=false;S.cls='all';renderRows();S.clf=classifier();S.clfVer=(S.clfVer||0)+1;render()});
+const SHAPES=['<circle cx="8" cy="8" r="5.5"/>','<rect x="2.8" y="2.8" width="10.4" height="10.4"/>','<path d="M8 2 L14 13 L2 13 Z"/>'];
+const shapeSvg=k=>`<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">${SHAPES[k]}</svg>`;
+function renderRows(){
+  $('customBox').hidden=S.cmode!=='custom';
+  $('classRows').innerHTML=S.classes.map((c,i)=>`<div class="crow" data-i="${i}">
+    <span class="sw" style="${c.rgb?`background:rgb(${c.rgb.join(',')})`:''}">${shapeSvg(i)}</span>
+    <input type="text" value="${escH(c.name)}" aria-label="Name der Farbe ${i+1}" maxlength="24">
+    <span class="cnt" data-cnt="${i}">–</span>
+    <button type="button" class="pick">${c.vec?'Neu wählen':'Im Bild wählen'}</button>
+    <button type="button" class="del" aria-label="Farbe entfernen">✕</button></div>`).join('');
+  $('addClass').hidden=S.classes.length>=3;
+}
+let clsKey='';
+function renderClassUI(per){
+  const f=S.clf;
+  $('clsBox').hidden=!f;
+  const hintEl=$('cmodeHint');
+  if(S.cmode==='auto')hintEl.textContent=f?'Helle und dunkle Körner automatisch erkannt. Dunkle Körner sind eckig markiert.':'Keine deutlich hellen und dunklen Körner gefunden. Alle zählen als eine Sorte.';
+  else if(S.cmode==='custom')hintEl.textContent=f?'Jedes Korn zählt zur ähnlichsten Farbe. Form der Markierung = Farbe.':'Wähle für mindestens zwei Farben je ein typisches Korn im Bild.';
+  else hintEl.textContent=S.cmodeAuto?'Keine deutlich hellen und dunklen Körner erkannt. Bei Bedarf „Hell/Dunkel“ oder „Eigene“ wählen.':'Alle Körner zählen als eine Sorte.';
+  if(f){const key=f.names.join('|');
+    if(key!==clsKey){clsKey=key;if(S.cls!=='all'&&+S.cls>=f.K)S.cls='all';
+      $('cls').innerHTML=`<button type="button" data-v="all">Alle</button>`+f.names.map((n,k)=>`<button type="button" data-v="${k}">${shapeSvg(k)}${escH(n)}</button>`).join('')}
+    [...$('cls').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===String(S.cls)));
+  } else {clsKey='';S.cls='all'}
+  if(S.cmode==='custom'){let k=0;S.classes.forEach((c,i)=>{const el=document.querySelector(`[data-cnt="${i}"]`);if(el)el.textContent=c.vec&&f?fmt(per[k++]||0):'–'})}
+}
+$('addClass').onclick=()=>{if(S.classes.length>=3)return;S.classes.push({name:['Hauptsorte','Fremdkorn','Unkraut'][S.classes.length],vec:null});renderRows();startPick(S.classes.length-1)};
+$('classRows').addEventListener('click',e=>{const row=e.target.closest('.crow');if(!row)return;const i=+row.dataset.i;
+  if(e.target.closest('.pick'))startPick(i);
+  else if(e.target.closest('.del')){S.classes.splice(i,1);renderRows();S.clf=classifier();S.clfVer=(S.clfVer||0)+1;render()}});
+$('classRows').addEventListener('input',e=>{const row=e.target.closest('.crow');if(!row)return;S.classes[+row.dataset.i].name=e.target.value;S.clf=classifier();S.clfVer=(S.clfVer||0)+1;clsKey='';render()});
+function startPick(i){
+  if(!S.src)return;
+  S.pickFor=i;stage.classList.add('picking');setEditing(true);
+  setTimeout(()=>hint(`Tippe auf ein typisches Korn für „${S.classes[i].name}“.`),60);
+}
+function endPick(){S.pickFor=null;stage.classList.remove('picking')}
+function pickAt(x,y){
+  const w=S.w,lab=S.lab,xi=Math.round(x),yi=Math.round(y);let id=0;
+  for(let r=0;r<=8&&!id;r++)for(let yy=Math.max(0,yi-r);yy<=Math.min(S.h-1,yi+r)&&!id;yy++)for(let xx=Math.max(0,xi-r);xx<=Math.min(w-1,xi+r);xx++){if(lab[yy*w+xx]){id=lab[yy*w+xx];break}}
+  const [D0,D1,D2]=S.D,ch=S.ch;let a=[0,0,0],c=[0,0,0],n=0;
+  const add=i=>{a[0]+=D0[i];a[1]+=D1[i];a[2]+=D2[i];c[0]+=ch[0][i];c[1]+=ch[1][i];c[2]+=ch[2][i];n++};
+  if(!id){hint('Dort ist kein Korn. Bitte direkt auf ein Korn tippen.',true);return}
+  for(let i=0;i<lab.length;i++)if(lab[i]===id)add(i);
+  const cl=S.classes[S.pickFor];cl.vec=a.map(v=>v/n);cl.rgb=c.map(v=>Math.round(v/n));
+  if(navigator.vibrate)try{navigator.vibrate(12)}catch(e){}
+  endPick();setEditing(false);selectTab('small');renderRows();S.clf=classifier();S.clfVer=(S.clfVer||0)+1;clsKey='';render();
+}
+renderRows();
+document.querySelectorAll('.basisSeg').forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.v==='full'&&S.basis!=='full'&&S.counts&&S.counts.small>0){
+    $('smallAskN').textContent=fmt(S.counts.small);$('smallAsk').hidden=false;return}
+  S.basis=b.dataset.v;render()}));
+$('smallYes').onclick=()=>{$('smallAsk').hidden=true;S.basis='full';render()};
+$('smallNo').onclick=()=>{$('smallAsk').hidden=true;S.basis='all';render()};
+$('smallShow').onclick=()=>{$('smallAsk').hidden=true;selectTab('small');setView('check')};
+$('weight').addEventListener('input',()=>{updResult();$('saveMsg').textContent=''});
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>S.src&&render());
+
+/* ---------- Ergebnis als Bild ---------- */
+const HOME_URL='https://mjk912.github.io/tally/'; // erscheint unten auf dem Bild
+async function makeReport(){
+  try{await document.fonts.ready}catch(e){}
+  // Markierungen im Foto-Modus zeichnen
+  const keepView=S.view,keepTab=S.tab;
+  const T=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const W=1080,P=48,dark=T('--stage'),gold=T('--grain'),BG=T('--bg'),INK=T('--ink'),MUT=T('--muted'),LINE=T('--line');
+  const box=countedBox(),pad=markerR()*2;
+  const sx=Math.max(0,box.x0-pad),sy=Math.max(0,box.y0-pad),sw=Math.min(S.w,box.x1+pad)-sx,sh=Math.min(S.h,box.y1+pad)-sy;
+  const sc=Math.min(W/sw,1150/sh),iw=sw*sc,ih=sh*sc;
+  S.view='photo';S.tab='count';S.minPx=1.6/sc;render();S.minPx=null; // schlichte Markierungen in Bildgröße
+  const c=S.counts,t=currentTKG(),f=S.clf;
+  const rows=[];
+  const kultur=$('kultur').value.trim(),sorte=$('sorte').value.trim(),charge=$('charge').value.trim();
+  if(kultur||sorte)rows.push(['Kultur · Sorte',[kultur,sorte].filter(Boolean).join(' · ')]);
+  if(charge)rows.push(['Charge',charge]);
+  const probe=$('probe').value.trim();if(probe)rows.push(['Probe',probe]);
+  rows.push(['Datum',new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})]);
+  rows.push(['Gezählte Körner',fmt(currentN())+(S.basis==='full'?' (ohne Kleinkorn)':' (mit Kleinkorn)')]);
+  const wt=parseFloat(String($('weight').value).replace(',','.'));if(wt>0)rows.push(['Gewicht der Probe',wt.toLocaleString('de-DE')+' g'+(S.basisOk?(S.basis==='full'?' (ohne Kleinkorn)':' (mit Kleinkorn)'):'')]);
+  if(c.all)rows.push(['Kleinkorn',`${fmt(c.small)} Stück · ${(c.small/c.all*100).toLocaleString('de-DE',{maximumFractionDigits:1})} %`]);
+  if(f&&c.classes){const tot=c.classes.reduce((a,b)=>a+b.count,0)||1;rows.push(['Farben',c.classes.map(k=>`${fmt(k.count)} ${k.name} (${Math.round(k.count/tot*100)} %)`).join(' · ')])}
+  if(c.plus||c.minus)rows.push(['Von Hand korrigiert',`+${c.plus} / −${c.minus}`]);
+  const H=150+ih+P+220+rows.length*62+P+110;
+  const out=document.createElement('canvas');out.width=W;out.height=Math.round(H);const g=out.getContext('2d');
+  g.fillStyle=BG;g.fillRect(0,0,W,H);
+  // Kopf
+  g.fillStyle=dark;g.fillRect(0,0,W,150);
+  g.textBaseline='middle';g.font='800 64px "Bricolage Grotesque", system-ui, sans-serif';
+  g.fillStyle='#fff';g.fillText('tal',P,78);const kw=g.measureText('tal').width;g.fillStyle=gold;g.fillText('ly',P+kw,78);
+  g.font='500 30px "JetBrains Mono", monospace';g.fillStyle='#b9c0bb';g.textAlign='right';g.fillText(rows.find(r=>r[0]==='Datum')[1],W-P,80);g.textAlign='left';
+  // Foto mit Markierungen
+  g.fillStyle=dark;g.fillRect(0,150,W,ih);
+  const ox=(W-iw)/2;g.drawImage(cv,sx,sy,sw,sh,ox,150,iw,ih);g.drawImage(ovc,sx,sy,sw,sh,ox,150,iw,ih);
+  // TKG groß
+  let y=150+ih+P;
+  g.fillStyle=MUT;g.font='700 26px "Atkinson Hyperlegible", system-ui, sans-serif';g.fillText('TAUSENDKORNGEWICHT',P,y+20);
+  g.fillStyle=INK;g.font='700 120px "JetBrains Mono", monospace';g.fillText(t?fmtG(t.tkg)+' g':'– g',P,y+110);
+  g.textAlign='right';g.fillStyle=MUT;g.font='700 26px "Atkinson Hyperlegible", system-ui, sans-serif';g.fillText('KÖRNER',W-P,y+20);
+  g.fillStyle=INK;g.font='700 84px "JetBrains Mono", monospace';g.fillText(fmt(currentN()),W-P,y+104);g.textAlign='left';
+  y+=190;g.fillStyle=gold;g.fillRect(P,y,W-2*P,4);y+=30;
+  // Zeilen
+  for(const [k,v] of rows){
+    g.fillStyle=MUT;g.font='400 30px "Atkinson Hyperlegible", system-ui, sans-serif';g.fillText(k,P,y+20);
+    g.fillStyle=INK;g.font='700 32px "Atkinson Hyperlegible", system-ui, sans-serif';g.textAlign='right';
+    let txt=v;while(g.measureText(txt).width>W-2*P-330&&txt.length>4)txt=txt.slice(0,-2);if(txt!==v)txt+='…';
+    g.fillText(txt,W-P,y+20);g.textAlign='left';
+    g.fillStyle=LINE;g.fillRect(P,y+46,W-2*P,2);y+=62;
+  }
+  // Fuß
+  y+=P-20;g.fillStyle=dark;g.fillRect(0,y,W,H-y);
+  g.fillStyle=gold;g.font='700 30px "Atkinson Hyperlegible", system-ui, sans-serif';g.fillText('Gezählt mit tally',P,y+42);
+  g.fillStyle='#b9c0bb';g.font='400 24px "Atkinson Hyperlegible", system-ui, sans-serif';
+  g.fillText('made with 💚 by mjk912 · '+HOME_URL.replace(/^https?:\/\//,'').replace(/\/$/,''),P,y+82);
+  S.view=keepView;S.tab=keepTab;render();
+  return out;
+}
+let shareBlob=null,shareName='';
+function fileName(parts){return ('tally-'+(parts.filter(Boolean).join('-')||'Probe')+'-'+new Date().toISOString().slice(0,10)).replace(/[^\wäöüÄÖÜß.-]+/g,'_')+'.jpg'}
+function openShare(blob,name){
+  shareBlob=blob;shareName=name;
+  const img=$('shareImg');if(img.src.startsWith('blob:'))URL.revokeObjectURL(img.src);img.src=URL.createObjectURL(blob);
+  const file=new File([blob],name,{type:'image/jpeg'});
+  $('shareNow').hidden=!(navigator.canShare&&navigator.canShare({files:[file]}));
+  $('saveImg').hidden=!$('shareNow').hidden;$('shareMsg').textContent='';$('shareMsg').className='msg';
+  $('shareView').hidden=false;
+}
+$('shareNow').onclick=async()=>{
+  const file=new File([shareBlob],shareName,{type:'image/jpeg'});
+  try{await navigator.share({files:[file],title:'tally',text:'TKG-Ergebnis, gezählt mit tally: '+HOME_URL})}
+  catch(e){if(e&&e.name!=='AbortError'){$('shareMsg').className='msg err';$('shareMsg').textContent='Teilen geht hier nicht. Bitte „Bild speichern“ nutzen oder lange auf das Bild drücken.'}}
+};
+$('saveImg').onclick=async()=>{
+  const msg=$('shareMsg');msg.className='msg';
+  try{
+    const dl=window.claude?.use?await window.claude.use('downloads'):null;
+    if(dl){await dl.save({filename:shareName,data:shareBlob});msg.className='msg ok';msg.textContent='Gespeichert.';return}
+    if(window.claude?.use){msg.className='msg err';msg.textContent='Speichern ist hier nicht möglich. Bitte lange auf das Bild drücken.';return}
+    const a=document.createElement('a');a.href=URL.createObjectURL(shareBlob);a.download=shareName;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);msg.className='msg ok';msg.textContent='Bild wird gespeichert.';
+  }catch(e){if(e?.code==='declined')return;msg.className='msg err';msg.textContent='Speichern hat nicht geklappt. Bitte lange auf das Bild drücken.'}
+};
+$('shareClose').onclick=()=>{$('shareView').hidden=true};
+
+
+/* ---------- Chargen speichern ---------- */
+let col=null,store='';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let toastT=0;
+function toast(html,ms){const t=$('toast');t.innerHTML=html;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,ms||4500)}
+$('toast').addEventListener('click',()=>$('toast').hidden=true);
+// Ergebnisbild klein genug zum Speichern
+async function reportData(){
+  const big=await makeReport(),k=720/big.width,c=document.createElement('canvas');
+  c.width=720;c.height=Math.round(big.height*k);c.getContext('2d').drawImage(big,0,0,c.width,c.height);
+  let q=0.78,d=c.toDataURL('image/jpeg',q);
+  while(d.length>200000&&q>0.35){q-=0.1;d=c.toDataURL('image/jpeg',q)}
+  return d;
+}
+function nextProbe(v){const m=String(v).match(/^(.*?)(\d+)\s*$/);return m?m[1]+(+m[2]+1):(v?v+' 2':'Probe 2')}
+$('saveBtn').onclick=async()=>{
+  const msg=$('saveMsg');msg.className='msg';msg.textContent='';
+  const t=currentTKG();
+  if(!t){msg.className='msg err';msg.textContent='Bitte zuerst das Gewicht eintragen.';$('weight').focus();return}
+  const kultur=$('kultur').value.trim(),sorte=$('sorte').value.trim(),charge=$('charge').value.trim(),probe=$('probe').value.trim();
+  if(!kultur){msg.className='msg err';msg.textContent='Bitte eine Kultur angeben.';$('kultur').focus();return}
+  if(!col){msg.className='msg err';msg.textContent='Speichern ist hier nicht verfügbar.';return}
+  const c=S.counts;
+  try{
+    $('saveBtn').disabled=true;
+    const img=await reportData();
+    await col.add({kultur,sorte,charge,probe,count:currentN(),basis:S.basis,small:c.small,all:c.all,clump:c.clump,plus:c.plus,minus:c.minus,classes:c.classes,roi:!!S.roi,
+      weight:t.wt,tkg:Math.round(t.tkg*100)/100,created:Date.now(),
+      settings:{sens:+$('sens').value,sep:+$('sep').value,small:+$('small').value,cls:S.cls,cmode:S.cmode},img});
+    toast(`<b>Gespeichert:</b> ${esc(kultur)}${sorte?' · '+esc(sorte):''}${probe?' · '+esc(probe):''}, TKG ${fmtG(t.tkg)} g.<br>`+
+      (store==='claude'?'Liegt in deinem Claude-Konto. Zum Weitergeben „Als Bild“ nutzen.'
+        :'Nur in diesem Browser gespeichert. Beim Löschen der Browserdaten geht es verloren – sichere wichtige Ergebnisse mit „Als Bild“.'),6500);
+    $('probe').value=nextProbe(probe);S.saved=true;
+  }catch(err){msg.className='msg err';msg.textContent=err?.code==='quota_exceeded'?'Speicher voll. Bitte alte Proben löschen.':'Speichern hat nicht geklappt. Bitte noch einmal versuchen.'}
+  finally{$('saveBtn').disabled=false}
+};
+let savedById=new Map();
+function dataUrlBlob(d){const [h,b]=d.split(',');const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  return new Blob([u],{type:(h.match(/data:([^;]+)/)||[])[1]||'image/jpeg'})}
+const openGroups=new Set();let lastDocs=[];
+function renderSaved(docs){
+  lastDocs=docs;
+  const box=$('savedList');savedById=new Map();
+  if(!docs.length){box.innerHTML='<p class="empty">Noch keine Proben gespeichert.</p>';return}
+  const groups=new Map();
+  for(const d of docs){const v={id:d.id,...d.data()};savedById.set(d.id,v);
+    const key=[v.kultur||'Ohne Kultur',v.sorte||'',v.charge||''].join('|');
+    if(!groups.has(key))groups.set(key,{key,kultur:v.kultur||'Ohne Kultur',sorte:v.sorte||'',charge:v.charge||'',items:[]});groups.get(key).items.push(v)}
+  const html=[...groups.values()].sort((a,b)=>Math.max(...b.items.map(i=>i.created))-Math.max(...a.items.map(i=>i.created))).map(g=>{
+    const n=g.items.length,open=openGroups.has(g.key);
+    let body='';
+    if(open){
+      const tk=g.items.map(i=>i.tkg),mean=tk.reduce((a,b)=>a+b,0)/n;
+      const sd=n>1?Math.sqrt(tk.reduce((a,b)=>a+(b-mean)**2,0)/(n-1)):0;
+      const sm=g.items.filter(i=>i.all),kk=sm.length?sm.reduce((a,i)=>a+i.small/i.all,0)/sm.length:null;
+      const items=g.items.sort((a,b)=>a.created-b.created).map(i=>`
+        <div class="prow">
+          <div class="meta"><b>${fmtG(i.tkg)} g</b> · ${esc(i.probe||'Probe')} · ${fmt(i.count)} Körner<br>${new Date(i.created).toLocaleDateString('de-DE')} · ${(i.weight||0).toLocaleString('de-DE')} g ${i.basis==='full'?'ohne':'mit'} Kleinkorn</div>
+          ${i.img?`<button type="button" class="img" data-id="${esc(i.id)}">Teilen</button>`:'<span></span>'}
+          <button class="del" type="button" data-id="${esc(i.id)}">Löschen</button>
+        </div>`).join('');
+      body=`<div class="sumrow"><span>Ø TKG <b>${fmtG(mean)} g</b></span>${n>1?`<span>${fmtG(Math.min(...tk))}–${fmtG(Math.max(...tk))} g</span><span>± ${fmtG(sd)} g</span>`:''}${kk!==null?`<span>Kleinkorn Ø ${(kk*100).toLocaleString('de-DE',{maximumFractionDigits:1})} %</span>`:''}</div>${items}`;
+    }
+    return `<div class="group${open?' open':''}"><button type="button" class="ghead" data-key="${esc(g.key)}" aria-expanded="${open}">
+      <span>${esc(g.kultur)}${g.sorte?' · '+esc(g.sorte):''}${g.charge?' · '+esc(g.charge):''}</span><em>${n} ${n===1?'Probe':'Proben'}</em></button>${body}</div>`;
+  }).join('');
+  box.innerHTML=`<div style="display:flex;flex-direction:column;gap:10px">${html}</div>`;
+}
+$('savedList').addEventListener('click',async e=>{
+  const gh=e.target.closest('.ghead');
+  if(gh){const k=gh.dataset.key;openGroups.has(k)?openGroups.delete(k):openGroups.add(k);renderSaved(lastDocs);return}
+  const im=e.target.closest('.img');
+  if(im){const v=savedById.get(im.dataset.id);if(!v?.img)return;const blob=dataUrlBlob(v.img);
+    openShare(blob,fileName([v.kultur,v.sorte,v.charge,v.probe]));return}
+  const b=e.target.closest('.del');if(!b||!col)return;
+  if(!b.classList.contains('arm')){b.classList.add('arm');b.textContent='Wirklich?';setTimeout(()=>{b.classList.remove('arm');b.textContent='Löschen'},3000);return}
+  b.disabled=true;try{await col.doc(b.dataset.id).delete()}catch(err){b.disabled=false;b.textContent='Fehler'}
+});
+// Eigenständig (z. B. GitHub Pages): Proben in IndexedDB dieses Browsers
+function idbCol(){return new Promise(res=>{
+  let rq;try{rq=indexedDB.open('tally',1)}catch(e){return res(null)}
+  rq.onupgradeneeded=()=>rq.result.createObjectStore('proben',{keyPath:'id'});
+  rq.onerror=()=>res(null);
+  rq.onsuccess=async()=>{
+    const db=rq.result,subs=[];
+    const all=()=>new Promise(r=>{const g=db.transaction('proben').objectStore('proben').getAll();g.onsuccess=()=>r(g.result||[]);g.onerror=()=>r([])});
+    const put=v=>new Promise((r,j)=>{const tx=db.transaction('proben','readwrite');tx.objectStore('proben').put(v);tx.oncomplete=r;tx.onerror=tx.onabort=()=>j({code:'quota_exceeded'})});
+    const emit=async()=>{const docs=(await all()).sort((a,b)=>b.created-a.created).map(v=>({id:v.id,data:()=>v}));subs.forEach(f=>f({docs}))};
+    // ältere Einträge aus dem localStorage übernehmen
+    try{const old=JSON.parse(localStorage.getItem('kornzaehler_chargen')||'[]');for(const v of old)await put(v);localStorage.removeItem('kornzaehler_chargen')}catch(e){}
+    const api={
+      add:async v=>{await put({...v,id:Date.now().toString(36)+Math.random().toString(36).slice(2,7)});emit()},
+      doc:id=>({delete:()=>new Promise(r=>{const tx=db.transaction('proben','readwrite');tx.objectStore('proben').delete(id);tx.oncomplete=()=>{emit();r()}})}),
+      orderBy:()=>api,limit:()=>api,
+      onSnapshot:f=>{subs.push(f);emit();return()=>{}}
+    };
+    res(api);
+  };
+})}
+async function useLocal(){col=await idbCol();store='browser';
+  if(col)col.orderBy('created','desc').limit(500).onSnapshot(s=>renderSaved(s.docs));
+  else $('savedList').innerHTML='<p class="empty">Speichern ist in diesem Browser nicht möglich (privater Modus?).</p>'}
+(async()=>{
+  try{
+    if(!window.claude?.use)return useLocal();
+    const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
+    if(!db||!user)return useLocal();
+    const uid=await user.id();
+    col=db.collection('data/users/'+uid);store='claude';
+    $('storeNote').textContent='In dieser Claude-Version liegen die Proben in deinem Claude-Konto. In der freien Web-Version nur im Browser. Wichtige Ergebnisse über „Teilen“ sichern.';
+    col.orderBy('created','desc').limit(500).onSnapshot(s=>renderSaved(s.docs),
+      ()=>{$('savedList').innerHTML='<p class="empty">Gespeicherte Proben konnten nicht geladen werden.</p>'});
+  }catch(e){useLocal()}
+})();
+
+/* ---------- Beispielbild ---------- */
+function sample(){
+  setMenu(false);
+  let seed=11;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  const W=1100,H=780,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  const bg=g.createRadialGradient(W/2,H/2,100,W/2,H/2,W*.7);bg.addColorStop(0,'#3a4146');bg.addColorStop(1,'#272c30');
+  g.fillStyle=bg;g.fillRect(0,0,W,H);
+  const pts=[];
+  for(let tries=0;tries<8000&&pts.length<175;tries++){
+    const x=40+rnd()*(W-80),y=40+rnd()*(H-80);
+    if(pts.some(p=>(p.x-x)**2+(p.y-y)**2<34*34))continue;
+    const sz=rnd()<.09?0.55+rnd()*.12:1;
+    pts.push({x,y,a:rnd()*Math.PI,sz});
+    if(sz===1&&rnd()<.06){const a=rnd()*Math.PI;pts.push({x:x+Math.cos(a)*19,y:y+Math.sin(a)*19,a:a+.3,sz:1})}
+  }
+  for(const p of pts){
+    g.save();g.translate(p.x,p.y);g.rotate(p.a);
+    const L=(15+rnd()*3)*p.sz,B=(8+rnd()*1.5)*Math.sqrt(p.sz);
+    g.fillStyle='rgba(0,0,0,.35)';g.beginPath();g.ellipse(2,3,L,B,0,0,7);g.fill();
+    const gr=g.createLinearGradient(0,-B,0,B);const hue=36+rnd()*6,lt=52+rnd()*10;
+    gr.addColorStop(0,`hsl(${hue} 70% ${lt+14}%)`);gr.addColorStop(.6,`hsl(${hue} 65% ${lt}%)`);gr.addColorStop(1,`hsl(${hue-4} 60% ${lt-16}%)`);
+    g.fillStyle=gr;g.beginPath();g.ellipse(0,0,L,B,0,0,7);g.fill();
+    g.strokeStyle=`hsla(${hue-6},55%,${lt-22}%,.7)`;g.lineWidth=1.3;
+    g.beginPath();g.moveTo(-L*.75,1);g.quadraticCurveTo(0,2.5,L*.75,1);g.stroke();
+    g.restore();
+  }
+  const nSmall=pts.filter(p=>p.sz<1).length;
+  setImage(c,`Beispiel: ${pts.length} Körner, ${nSmall} Kleinkorn`);
+}
+$('sample').onclick=sample;
+sample();
+})();
+</script>
+
+</body>
+</html>
