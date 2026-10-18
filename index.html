@@ -646,21 +646,37 @@ function boxSum(src,w,h,r){
   return out}
 // Untergrund lokal schätzen (Schatten, Lichtverlauf) und je Bildpunkt den Abstand dazu messen:
 // L = heller/dunkler als der Untergrund, C = Farbabweichung. Helle und dunkle Körner fallen beide auf.
+const SHADOW=0.35; // Schatten dunkeln den Untergrund höchstens etwa so stark ab
+function fdiff(r,g,b,br,bg2,bb){
+  const sp=r+g+b+1,sb=br+bg2+bb+1,l=(sp-sb)/3;
+  const cr=r/sp-br/sb,cg=g/sp-bg2/sb,cb=b/sp-bb/sb,dc=Math.sqrt(cr*cr+cg*cg+cb*cb)*sb;
+  const lt=l>0?l:Math.max(0,-l-SHADOW*sb/3);
+  return Math.sqrt(lt*lt+4*dc*dc);
+}
 function prepare(ch,w,h){
-  const n=w*h,f=4,sw=Math.ceil(w/f),sh=Math.ceil(h/f),sn=sw*sh;
-  const R=Math.max(2,Math.round(Math.max(w,h)/14/f));
+  const n=w*h,f=4,sw=Math.ceil(w/f),sh=Math.ceil(h/f),sn=sw*sh,M=Math.max(sw,sh);
+  const Rs=Math.max(2,Math.round(M/14)),Rl=Math.max(4,Math.round(M/4));
   // verkleinern (Blockmittel)
   const sc=[0,1,2].map(c=>{const o=new Float32Array(sn),cnt=new Float32Array(sn),src=ch[c];
     for(let y=0;y<h;y++){const sy=(y/f|0)*sw,r=y*w;for(let x=0;x<w;x++){const k=sy+(x/f|0);o[k]+=src[r+x];cnt[k]++}}
     for(let k=0;k<sn;k++)o[k]/=cnt[k];return o});
   const wt=new Float32Array(sn).fill(1),bg=[new Float32Array(sn),new Float32Array(sn),new Float32Array(sn)],Fs=new Float32Array(sn);
-  for(let pass=0;pass<2;pass++){
-    const den=boxSum(wt,sw,sh,R);
+  const fdist=()=>{for(let k=0;k<sn;k++)Fs[k]=fdiff(sc[0][k],sc[1][k],sc[2][k],bg[0][k],bg[1][k],bg[2][k])};
+  // Untergrund nur aus sicher freien Stellen schätzen. Wo Körner dicht liegen, aus größerem Umkreis nehmen.
+  for(let pass=0;pass<4;pass++){
+    const dS=boxSum(wt,sw,sh,Rs),dL=boxSum(wt,sw,sh,Rl),aS=(2*Rs+1)**2;
     for(let c=0;c<3;c++){const prod=new Float32Array(sn);for(let k=0;k<sn;k++)prod[k]=sc[c][k]*wt[k];
-      const num=boxSum(prod,sw,sh,R);for(let k=0;k<sn;k++)if(den[k]>0.5)bg[c][k]=num[k]/den[k]}
-    for(let k=0;k<sn;k++){const dr=sc[0][k]-bg[0][k],dg=sc[1][k]-bg[1][k],db=sc[2][k]-bg[2][k],l=(dr+dg+db)/3;
-      Fs[k]=Math.sqrt(l*l+4*((dr-l)**2+(dg-l)**2+(db-l)**2))}
-    const t=otsu(Fs);for(let k=0;k<sn;k++)wt[k]=Fs[k]<t?1:0;
+      const nS=boxSum(prod,sw,sh,Rs),nL=boxSum(prod,sw,sh,Rl);
+      for(let k=0;k<sn;k++){const bl=dL[k]>0.5?nL[k]/dL[k]:bg[c][k],q=Math.min(1,dS[k]/(aS*0.25));
+        bg[c][k]=dS[k]>0.5?q*(nS[k]/dS[k])+(1-q)*bl:bl}}
+    fdist();
+    const t=otsu(Fs),lim=pass===0?t:t*0.5;
+    const fg=new Uint8Array(sn);for(let k=0;k<sn;k++)fg[k]=Fs[k]>=lim?1:0;
+    // Ränder der Körner (Schatten, Säume) nicht zum Untergrund zählen
+    const g=Math.max(1,Math.round(Rs/5));let a=fg,b=new Uint8Array(sn);
+    for(let it=0;it<g;it++){b.fill(0);for(let y=0;y<sh;y++)for(let x=0;x<sw;x++){const k=y*sw+x;
+      b[k]=a[k]|(x>0&&a[k-1])|(x<sw-1&&a[k+1])|(y>0&&a[k-sw])|(y<sh-1&&a[k+sw])?1:0}[a,b]=[b,a]}
+    for(let k=0;k<sn;k++)wt[k]=a[k]?0:1;
   }
   // volle Auflösung: Untergrund bilinear, Abstand je Bildpunkt
   const L=new Float32Array(n),F=new Float32Array(n),D0=new Float32Array(n),D1=new Float32Array(n),D2=new Float32Array(n);
@@ -672,7 +688,7 @@ function prepare(ch,w,h){
       const bb=bg[2][a]*w00+bg[2][b]*w01+bg[2][c]*w10+bg[2][d]*w11;
       const dr=ch[0][i]-br,dg=ch[1][i]-bgn,db=ch[2][i]-bb,l=(dr+dg+db)/3;
       D0[i]=dr;D1[i]=dg;D2[i]=db;
-      L[i]=l;F[i]=Math.sqrt(l*l+4*((dr-l)**2+(dg-l)**2+(db-l)**2))}}
+      L[i]=l;F[i]=fdiff(ch[0][i],ch[1][i],ch[2][i],br,bgn,bb)}}
   S.L=L;S.F=F;S.D=[D0,D1,D2];S.ch=ch;S.thr={all:otsu(F)};
 }
 function distT(m,w,h,d){
@@ -692,16 +708,32 @@ function erode(src,dst,w,h){dst.fill(0);
 function label(m,w,h,lab,st,Lv,dT){
   lab.fill(0);const comps=[];let id=0;const n=w*h;
   for(let i=0;i<n;i++){
-    if(!m[i]||lab[i])continue;id++;let sp=0;st[sp++]=i;lab[i]=id;let a=0,sx=0,sy=0,sl=0,nd=0;
-    while(sp){const p=st[--sp],x=p%w;a++;sx+=x;sy+=(p-x)/w;sl+=Lv[p];if(Lv[p]<dT)nd++;
+    if(!m[i]||lab[i])continue;id++;let sp=0;st[sp++]=i;lab[i]=id;let a=0,sx=0,sy=0,sl=0,nd=0,edge=0;
+    while(sp){const p=st[--sp],x=p%w;a++;sx+=x;sy+=(p-x)/w;sl+=Lv[p];if(Lv[p]<dT)nd++;if(x===0||x===w-1||p<w||p>=n-w)edge=1;
       if(x>0&&m[p-1]&&!lab[p-1]){lab[p-1]=id;st[sp++]=p-1}
       if(x<w-1&&m[p+1]&&!lab[p+1]){lab[p+1]=id;st[sp++]=p+1}
       if(p>=w&&m[p-w]&&!lab[p-w]){lab[p-w]=id;st[sp++]=p-w}
       if(p<n-w&&m[p+w]&&!lab[p+w]){lab[p+w]=id;st[sp++]=p+w}}
-    comps.push({id,a,cx:sx/a,cy:sy/a,l:sl/a,df:nd/a})}
+    comps.push({id,a,cx:sx/a,cy:sy/a,l:sl/a,df:nd/a,edge})}
   return comps}
 const median=arr=>{if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b);return s[Math.floor(s.length/2)]};
 
+// Konvexität (Fläche / Fläche der konvexen Hülle) je Teil
+function solidity(lab,w,h,comps){
+  const byId=new Map();for(const c of comps){c.hp=[];byId.set(c.id,c)}
+  for(let y=0;y<h;y++){const r=y*w;let x=0;
+    while(x<w){const id=lab[r+x];if(!id){x++;continue}const x0=x;while(x<w&&lab[r+x]===id)x++;
+      const c=byId.get(id);if(c){c.hp.push(x0,y,x,y,x0,y+1,x,y+1)}}}
+  for(const c of comps){const p=c.hp;const pts=[];for(let i=0;i<p.length;i+=2)pts.push([p[i],p[i+1]]);
+    pts.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+    const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+    const lo=[],up=[];
+    for(const q of pts){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],q)<=0)lo.pop();lo.push(q)}
+    for(let i=pts.length-1;i>=0;i--){const q=pts[i];while(up.length>=2&&cr(up[up.length-2],up[up.length-1],q)<=0)up.pop();up.push(q)}
+    const hull=lo.slice(0,-1).concat(up.slice(0,-1));let A=0;
+    for(let i=0;i<hull.length;i++){const a=hull[i],b=hull[(i+1)%hull.length];A+=a[0]*b[1]-b[0]*a[1]}
+    c.sol=A?Math.min(1,c.a/(Math.abs(A)/2)):1;delete c.hp}
+}
 // Reine Auswertung – läuft im Hintergrundprozess (oder als Ersatz direkt)
 function analyze(P,D){
   const {w,h}=P,{F,L,buf}=D,DUST=P.dust;
@@ -726,12 +758,20 @@ function analyze(P,D){
     for(const c of raw)if(c.oid)sumE[c.oid]+=c.a;
     for(const c of raw)c.ao=c.oid?orig[c.oid-1].a*c.a/sumE[c.oid]:c.a;
   } else for(const c of raw)c.ao=c.a;
-  let comps=R?raw.filter(c=>inPoly(c.cx,c.cy,R)):raw.slice();
-  let med=median(comps.map(c=>c.ao));
+  // ohne Zählbereich: alles am Bildrand weglassen (Tischkante, Papierrand, angeschnittene Körner)
+  const mg=Math.max(w,h)*0.02;
+  let comps=R?raw.filter(c=>inPoly(c.cx,c.cy,R)):raw.filter(c=>!c.edge&&c.cx>mg&&c.cy>mg&&c.cx<w-mg&&c.cy<h-mg);
+  // Fläche eines Einzelkorns: von den kleineren Teilen aus suchen, damit dichte Proben mit vielen Gruppen nicht verfälschen
+  solidity(buf.lab,w,h,comps);
+  const srt=comps.map(c=>c.ao).sort((x,y)=>x-y);
+  let med=srt.length?srt[Math.floor(srt.length*0.3)]:0;
+  for(let it=0;it<5&&med;it++){const v=srt.filter(a=>a>med*0.6&&a<med*1.5);if(v.length<3)break;med=median(v)}
+  // Bessere Referenz: konvexe, nicht übergroße Teile sind fast sicher Einzelkörner
+  {const conv=comps.filter(c=>c.sol>=0.9&&c.ao>med*0.5&&c.ao<med*2.6).map(c=>c.ao);if(conv.length>=5)med=median(conv)}
   comps=comps.filter(c=>c.ao>=med*DUST);
-  med=median(comps.filter(c=>c.ao>med*0.4&&c.ao<med*1.6).map(c=>c.ao))||med;
   comps.forEach(c=>{
-    c.n=c.ao>1.5*med?Math.max(2,Math.round(c.ao/med)):1;
+    const q=c.ao/med;
+    c.n=q<1.5||(c.sol>=0.9&&q<2.3)?1:Math.max(2,Math.round(q));
     c.small=c.n===1&&P.small>0&&c.ao<med*P.small;
   });
   // Bildpunkte der Haufen gepackt mitgeben (für eine Markierung je Korn)
@@ -749,7 +789,7 @@ function newBuf(n){return {m:new Uint8Array(n),a:new Uint8Array(n),lab:new Int32
 let worker=null,busy=false,pending=false,imgSeq=0;
 function makeWorker(){
   try{
-    const src=[distT,label,splitDark,inPoly,analyze,newBuf].map(f=>f.toString()).join('\n')+
+    const src=[distT,label,splitDark,inPoly,solidity,analyze,newBuf].map(f=>f.toString()).join('\n')+
       '\nconst median='+median.toString()+';\nlet D=null;\nonmessage=e=>{const q=e.data;'+
       'if(q.type==="init"){D={F:q.F,L:q.L,buf:newBuf(q.w*q.h)};return}'+
       'if(!D)return;const r=analyze(q.P,D);r.seq=q.seq;postMessage(r,[r.mask.buffer,r.core.buffer,r.lab.buffer,r.pk.buffer])};';
