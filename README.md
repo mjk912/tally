@@ -10,10 +10,10 @@ Läuft komplett im Browser, ohne Installation und ohne Anmeldung. Auf dem Handy 
 
 1. **Körner verteilen** – eine Probe einlagig auf einen glatten, einfarbigen Untergrund legen, möglichst ohne Berührung.
 2. **Foto machen** – gleichmäßiges Licht, Handy gerade von oben, nur die Probe im Bild.
-3. **Zählen** – Empfindlichkeit und Trennen einstellen, einzelne Körner über den Stift setzen oder löschen, bei Bedarf einen Zählbereich festlegen.
+3. **Zählen** – tally stellt Empfindlichkeit und Trennen selbst ein. Bei Bedarf nachjustieren, einzelne Körner über den Stift setzen oder löschen oder einen Zählbereich festlegen.
 4. **Sortieren** – für das TKG von gereinigtem Saatgut die markierten Kleinkörner aus der Probe nehmen und „Ohne Kleinkorn“ wählen. Hell/Dunkel oder eigene Farben sind optional.
 5. **Wiegen** – genau die gezählten Körner wiegen und das Gewicht eintragen.
-6. **Speichern und teilen** – Proben je Charge speichern; mehrere Proben werden gemittelt. Das Ergebnisbild lässt sich über das Teilen-Menü des Handys sichern oder weitergeben.
+6. **Speichern und teilen** – Proben je Charge speichern; mehrere Proben werden gemittelt. Aus dem Ø TKG die Saatmenge (kg/ha) berechnen. Ergebnis- und Saatmengen-Bild lassen sich über das Teilen-Menü des Handys sichern oder weitergeben.
 
 ## Wichtig
 
@@ -35,4 +35,4 @@ Privates, nicht-kommerzielles Projekt. Fragen, Fehler und Ideen bitte als [Issue
 
 [GNU AGPL-3.0](LICENSE) – frei nutzbar, auch im landwirtschaftlichen Betrieb. Wer den Code verändert und weitergibt oder als Dienst anbietet, muss den Quellcode unter derselben Lizenz offenlegen.
 
-made with 💚 by mjk912
+🌱☘️🌽🌾🌻

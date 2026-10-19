@@ -16,7 +16,7 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 /* Layout: App-Bildschirm. Mobil: schmale Kopfzeile · Bild (größte Fläche) · eine Ergebniszeile · kompaktes Dock mit 4 Arbeitsschritten. Bearbeiten öffnet das Bild im Vollbild mit Plus/Minus-Werkzeug. Ab 900px: Bild links, Dock rechts. */
 :root{
   --bg:#eef0ec; --panel:#f8f9f6; --ink:#1d2421; --muted:#5b655f; --line:#d3d8d2;
-  --grain:#b9851c; --grain-soft:#f3e6c4; --mark:#1f7a5a; --clump:#c2512b; --small:#4f4fd0; --off:#8a918d; --danger:#b3261e;
+  --on-mark:#fff; --grain:#b9851c; --grain-soft:#f3e6c4; --mark:#1f7a5a; --clump:#c2512b; --small:#4f4fd0; --off:#8a918d; --danger:#b3261e;
   --stage:#20262a;
   --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --f-body:"Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
@@ -24,10 +24,10 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#141917; --panel:#1c2220; --ink:#e7ebe6; --muted:#9aa49e; --line:#2f3733;
-  --grain:#e2b350; --grain-soft:#3a3120; --mark:#4cc79a; --clump:#ee8a62; --small:#9c9ef7; --off:#6f7772; --danger:#ff8a80; --stage:#0d1012; color-scheme:dark}}
+  --on-mark:#10140f; --grain:#e2b350; --grain-soft:#3a3120; --mark:#4cc79a; --clump:#ee8a62; --small:#9c9ef7; --off:#6f7772; --danger:#ff8a80; --stage:#0d1012; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#141917; --panel:#1c2220; --ink:#e7ebe6; --muted:#9aa49e; --line:#2f3733;
-  --grain:#e2b350; --grain-soft:#3a3120; --mark:#4cc79a; --clump:#ee8a62; --small:#9c9ef7; --off:#6f7772; --danger:#ff8a80; --stage:#0d1012; color-scheme:dark}
+  --on-mark:#10140f; --grain:#e2b350; --grain-soft:#3a3120; --mark:#4cc79a; --clump:#ee8a62; --small:#9c9ef7; --off:#6f7772; --danger:#ff8a80; --stage:#0d1012; color-scheme:dark}
 
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--f-body);overflow:hidden;
@@ -60,13 +60,19 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 /* Bühne */
 .stage{flex:1;min-height:150px;background:var(--stage);border-radius:12px;position:relative;overflow:hidden;touch-action:none;cursor:zoom-in}
 .stage canvas{position:absolute;left:0;top:0;transform-origin:0 0;display:block}
-#ovc{pointer-events:none}
+#ovc,#mk{pointer-events:none}
+.lg{white-space:nowrap}.lgs{width:12px;height:12px;vertical-align:-1px;margin-right:4px}.lg .dot.pt{width:10px;height:10px;vertical-align:0;margin-right:4px}
+.pre{opacity:.55;transition:opacity .15s}
+#mk{transform:none!important}
 .ov{position:absolute;z-index:2;background:rgba(15,18,20,.82);color:#eef1ee;border:0;border-radius:9px;backdrop-filter:blur(6px)}
 .view{left:6px;top:6px;display:flex;padding:3px;gap:2px}
 .view button{min-height:30px;padding:0 9px;font-size:12.5px;border:0;background:transparent;color:#cfd5d1;border-radius:7px}
 .view button[aria-pressed=true]{background:#f3e6c4;color:#1a1408}
 .editbtn{right:6px;bottom:6px;min-height:38px;font-size:13.5px;padding:0 12px}
 .editbtn:hover{border:0;background:rgba(15,18,20,.9)}
+.numbtn{right:54px;bottom:6px;min-height:38px;font:700 17px var(--f-mono)}
+.numbtn[aria-pressed=true],.numbtn[aria-pressed=true]:hover{background:#e2b350;color:#1a1408}
+.stage.full .numbtn{right:calc(8px + env(safe-area-inset-right,0px));bottom:calc(92px + env(safe-area-inset-bottom,0px))}
 .zoomreset,.roiclear{min-height:38px;font-size:13px}
 .zoomhint{left:6px;top:6px;font:700 12px var(--f-mono);padding:7px 8px;pointer-events:none}
 .prog{left:50%;top:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 10px;padding:12px 16px;min-width:220px;font-size:14px;font-weight:700;pointer-events:none;z-index:4}
@@ -119,6 +125,9 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .mid small{font-size:13px;color:var(--muted)}
 .breakdown{flex:1;min-width:0;font-size:12px;color:var(--muted);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .breakdown b{color:var(--ink);font-family:var(--f-mono)}
+.result{flex-wrap:wrap}
+.warnline{flex-basis:100%;margin:0;font-size:12.5px;line-height:1.35;color:var(--danger)}
+.okline{color:var(--mark)}
 .undo{flex:none;width:40px;min-height:40px;padding:0}
 
 /* Dock */
@@ -126,7 +135,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
 .tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-bottom:1px solid var(--line);flex:none}
 .tabs button{border:0;border-radius:0;background:transparent;min-height:40px;padding:0 2px;font-size:13px;color:var(--muted);border-bottom:3px solid transparent;gap:4px}
 .tabs button i{font:700 11px var(--f-mono);font-style:normal}
-@media (max-width:480px){.tabs button{flex-direction:column;gap:0;min-height:44px;font-size:12.5px;line-height:1.15}}
+@media (max-width:480px){.tabs{grid-template-columns:.8fr .95fr 1.15fr .95fr 1.25fr}.tabs button{flex-direction:column;gap:0;min-height:44px;font-size:12.5px;line-height:1.15}} /* Spalten nach Wortlänge, damit „Ergebnisse“ auch bei 320 px passt */
 .startbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .startbtns .btn{min-height:60px;flex-direction:column;gap:2px;font-size:14px}
 .startbtns .btn svg{width:24px;height:24px}
@@ -160,8 +169,11 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
 .msg{font-size:13px;margin:0}
 .msg:empty{display:none}
 .msg.ok{color:var(--mark)}.msg.err{color:var(--danger)}
+.ver{font:11px var(--f-mono);color:var(--muted);opacity:.7;text-align:center;margin:10px 0 0}
 .note{font-size:12.5px;color:var(--muted);margin:4px 0 0;line-height:1.35}
 .disclaimer{border-left:3px solid var(--grain);padding-left:8px}
+.ctrlbox{display:flex;flex-direction:column;gap:6px;border:1px solid var(--grain);border-radius:10px;padding:10px}
+.ctrlbox.ok{border-color:var(--mark)}
 .rule{border:0;border-top:1px solid var(--line);margin:2px 0;width:100%}
 #customBox{display:flex;flex-direction:column;gap:6px}
 #classRows{display:flex;flex-direction:column;gap:6px}
@@ -187,6 +199,9 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
 .vs.left{left:6px}.vs.right{right:6px}
 .vs .vlabel{font-size:9.5px;font-weight:700;letter-spacing:.02em;opacity:.85}
 .vs .vval{font:700 14px var(--f-mono);line-height:1}
+.vval.vauto{border:0;background:transparent;color:#fff;min-height:26px;padding:0 4px;font:700 14px var(--f-mono)}
+.vval.vauto.is-auto{color:#e2b350} /* 0 = automatische Einstellung */
+.vmark{position:absolute;left:-7px;right:-7px;height:3px;margin-top:-1.5px;background:#e2b350;border-radius:2px;opacity:.9}
 .vsb{min-height:30px;width:34px;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font:700 18px var(--f-mono)}
 .vsb:hover{border:0;background:rgba(255,255,255,.25)}
 .vtrack{position:relative;flex:1;width:6px;border-radius:3px;background:rgba(255,255,255,.28);margin:4px 0;cursor:ns-resize}
@@ -231,6 +246,15 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
 .prow .meta{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis}
 .prow .meta b{color:var(--ink);font-family:var(--f-mono)}
 .prow button{min-height:36px;font-size:12px;padding:0 10px;font-weight:400}
+.prow.open{cursor:pointer}.prow.open:active{background:var(--grain-soft)}.prow .chev{font-size:22px;color:var(--muted);padding:0 4px}
+#saveBtn.saved{background:var(--mark);border-color:var(--mark);color:var(--on-mark);opacity:1}
+.seedbtn{align-self:flex-start;min-height:36px;font-size:13px;padding:0 12px}
+.seed{border:1px solid var(--grain);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:8px}
+.seedhead{display:flex;justify-content:space-between;align-items:center}.seedhead .seedbtn{min-height:32px}
+.seedgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
+.seedgrid label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted)}
+.seedgrid .unit{display:flex;align-items:center;gap:4px}.seedgrid input{font:500 16px var(--f-mono);min-height:40px;padding:0 8px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);width:100%;min-width:0}.seedgrid i{font-style:normal;color:var(--muted);min-width:1.5em}
+.seedout{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 6px}.seedout .seedshare{margin-left:auto;min-height:36px;font-size:13px;padding:0 12px}.seedout .big{font-size:26px;color:var(--ink)}.seedout b{color:var(--ink)}
 .prow .del.arm{border-color:var(--danger);color:var(--danger)}
 .stage.tune .view{left:58px}
 .stage.tune .zoomhint{left:58px}
@@ -241,7 +265,7 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
 .basisSeg button[aria-pressed=true]{background:var(--grain-soft)}
 .shareview{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;flex-direction:column;
   padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px)}
-.sv-top{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 6px 14px;border-bottom:1px solid var(--line);flex:none}
+.sv-top{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);flex:none}
 .sv-top b{font:700 16px var(--f-display)}
 .sv-x{width:44px;padding:0;font-size:18px}
 .sv-img{flex:1;min-height:0;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:10px;background:var(--stage)}
@@ -251,12 +275,14 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
 .dot.num{width:16px;height:16px;color:#fff;font:700 10px/16px var(--f-mono);text-align:center;font-style:normal;vertical-align:-3px}
 .legend{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--muted)}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
-.dot.ring{border:2px solid}.dot.dash{border:2px dashed}
+.dot.ring{border:2px solid}.dot.pt{box-shadow:0 0 0 1.5px rgba(0,0,0,.6)}.dot.x{width:auto;height:auto;border-radius:0;font:700 12px/1 var(--f-body);font-style:normal}.dot.dash{border:2px dashed}
 
 /* Chargen */
 .group{display:flex;flex-direction:column;gap:6px}
 .ghead{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;font:700 14.5px var(--f-display);min-height:46px}
-.ghead em{font:400 12.5px var(--f-body);color:var(--muted);font-style:normal;display:flex;align-items:center;gap:8px}
+.ghead em{font-style:normal;display:flex;align-items:center;flex:none}
+.ghead .gt{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}.ghead .gt small{font:400 12.5px var(--f-body);color:var(--muted)}
+.ghead .grate{font:700 15px var(--f-mono);color:var(--ink);white-space:nowrap}.ghead .grate.tk{font-size:13px;color:var(--muted)}
 .ghead em::after{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px)}
 .group.open .ghead em::after{transform:rotate(225deg)}
 .group.open .ghead{border-color:var(--grain)}
@@ -282,6 +308,17 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
 .steps p{margin:0;font-size:13.5px;color:var(--muted)}
 .where{font:700 11px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--grain)}
 
+@media (max-width:899px){
+  /* Reiterleiste fest unten (Daumen), Inhalt darüber – sie wandert nicht mehr mit der Höhe des Inhalts */
+  .dock .tabs{order:2;border-bottom:0;border-top:1px solid var(--line)}
+  .dock .tabs button{border-bottom:0;border-top:3px solid transparent;min-height:52px}
+  .dock .tabs button[aria-selected=true]{border-top-color:var(--grain)}
+  .dock.collapsed .tabs{border-top:0}
+  .dock .pane{flex:1 1 auto}
+  /* eingeklappt (.dcol): Foto wieder zeigen */
+  .app[data-tab=tkg]:not(.dcol) .stage,.app[data-tab=saved]:not(.dcol) .stage,.app[data-tab=saved]:not(.dcol) .result{display:none}
+  .app[data-tab=tkg]:not(.dcol) .dock,.app[data-tab=saved]:not(.dcol) .dock{max-height:none;flex:1}
+}
 @media (max-width:599px){.srcline{visibility:hidden}h1{font-size:18px}.top{min-height:38px}.top .iconbtn{width:38px;min-height:38px}.app{gap:5px}}
 @media (max-width:480px){.tabs button[aria-selected=true]::after{right:5px;top:12px}}
 @media (min-width:900px){
@@ -324,6 +361,7 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
   <div class="stage" id="stage" aria-label="Foto mit Zählmarkierungen. Zwei Finger zoomen.">
     <canvas id="cv" width="900" height="600"></canvas>
     <canvas id="ovc" width="900" height="600" aria-hidden="true"></canvas>
+    <canvas id="mk" aria-hidden="true"></canvas>
     <div class="ov livecount" aria-live="polite"><b id="liveN">–</b><span id="liveL">Körner</span></div>
     <div class="ovrow">
 
@@ -331,6 +369,7 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
     <button class="ov ib editbtn" id="editBtn" type="button" aria-label="Körner korrigieren und Zählbereich" title="Bearbeiten">
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
     </button>
+    <button class="ov ib numbtn" id="numBtn" type="button" aria-pressed="false" aria-label="Körner nummerieren" title="Nummern anzeigen">#</button>
     <button type="button" class="ov ib roireset" id="roiReset" hidden title="Zählbereich entfernen" aria-label="Zählbereich entfernen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M7 7l1 13h8l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <div class="editbar">
       <div class="tool" id="tool" role="group" aria-label="Werkzeug">
@@ -338,7 +377,7 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
         <button type="button" data-v="remove" aria-pressed="false"><b><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="10" cy="13" rx="4.2" ry="7.5" transform="rotate(-25 10 13)" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="4.6" fill="currentColor"/><path d="M16.4 4.4l3.2 3.2M19.6 4.4l-3.2 3.2" stroke="var(--tool-bg,#20262a)" stroke-width="1.8" stroke-linecap="round"/></svg></b>Korn löschen</button>
         <button type="button" data-v="roi" aria-pressed="false" id="roiTool"><b><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6l12-2 3 11-9 5-7-6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-dasharray="3.5 2.5"/></svg></b>Bereich</button>
       </div>
-      <div class="edithint" id="edithint">Werkzeug wählen. Mit zwei Fingern zoomen, doppelt tippen zeigt das ganze Bild.</div>
+      <div class="edithint" id="edithint">Werkzeug wählen. Zoomen: zwei Finger – oder doppelt tippen, liegen lassen und ziehen. Doppelt tippen zeigt das ganze Bild.</div>
       <div class="editactions">
         <button type="button" id="undoBtn" aria-label="Rückgängig" disabled><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button type="button" class="done" id="doneBtn">Fertig</button>
@@ -346,16 +385,16 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
     </div>
     <button class="ov vicon left" type="button" data-open="sens" aria-label="Empfindlichkeit einstellen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="currentColor"/></svg><span>Empf.</span><i class="chev" aria-hidden="true"></i></button>
     <button class="ov vicon right" type="button" data-open="sep" aria-label="Körner trennen einstellen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="7.5" cy="12" rx="3.3" ry="6.5" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="16.5" cy="12" rx="3.3" ry="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2"/></svg><span>Trennen</span><i class="chev" aria-hidden="true"></i></button>
-    <div class="vs left" data-for="sens" data-step="2" role="slider" tabindex="0" aria-label="Empfindlichkeit" aria-valuemin="0" aria-valuemax="100">
-      <button type="button" class="vtitle" aria-label="Regler schließen">Empfindl.<i class="x" aria-hidden="true">✕</i></button><b class="vval">50</b>
+    <div class="vs left" data-for="sens" data-step="1" role="slider" tabindex="0" aria-label="Empfindlichkeit, Stufen um die automatische Einstellung" aria-valuemin="-5" aria-valuemax="5">
+      <button type="button" class="vtitle" aria-label="Regler schließen">Empfindl.<i class="x" aria-hidden="true">✕</i></button><b class="vval vauto" id="sensAuto">0</b>
       <button type="button" class="vsb" data-d="1" aria-label="Empfindlichkeit erhöhen" tabindex="-1">+</button>
-      <div class="vtrack"><i class="vfill"></i><i class="vthumb"></i></div>
+      <div class="vtrack"><i class="vfill"></i><i class="vmark" id="sensMark" hidden></i><i class="vthumb"></i></div>
       <button type="button" class="vsb" data-d="-1" aria-label="Empfindlichkeit verringern" tabindex="-1">−</button>
     </div>
-    <div class="vs right" data-for="sep" data-step="1" role="slider" tabindex="0" aria-label="Berührende Körner trennen" aria-valuemin="0" aria-valuemax="20">
-      <button type="button" class="vtitle" aria-label="Regler schließen">Trennen<i class="x" aria-hidden="true">✕</i></button><b class="vval">5</b>
+    <div class="vs right" data-for="sep" data-step="1" role="slider" tabindex="0" aria-label="Berührende Körner trennen, Stufen um die automatische Einstellung" aria-valuemin="-5" aria-valuemax="5">
+      <button type="button" class="vtitle" aria-label="Regler schließen">Trennen<i class="x" aria-hidden="true">✕</i></button><b class="vval vauto" id="sepAuto">0</b>
       <button type="button" class="vsb" data-d="1" aria-label="Trennung erhöhen" tabindex="-1">+</button>
-      <div class="vtrack"><i class="vfill"></i><i class="vthumb"></i></div>
+      <div class="vtrack"><i class="vfill"></i><i class="vmark" id="sepMark" hidden></i><i class="vthumb"></i></div>
       <button type="button" class="vsb" data-d="-1" aria-label="Trennung verringern" tabindex="-1">−</button>
     </div>
     <div class="ov prog" id="prog" hidden role="status"><span class="spin" aria-hidden="true"></span><span id="progT">Foto wird geladen</span><i><b id="progB"></b></i></div>
@@ -366,16 +405,17 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
     <div class="num"><span class="label" id="totalLabel">Körner</span><span class="big" id="total">–</span></div>
     <div class="num"><span class="label">TKG</span><span class="mid" id="tkgBar">– <small>g</small></span></div>
     <div class="breakdown" id="breakdown"></div>
+    <p class="warnline" id="warnLine" hidden></p>
     <button class="undo" id="resetEdits" type="button" hidden aria-label="Alle Korrekturen verwerfen" title="Alle Korrekturen verwerfen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6M4.5 15a8 8 0 101.9-8.3L4 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
 
   <div class="dock" id="dock">
     <div class="tabs" role="tablist" id="tabs">
-      <button role="tab" type="button" data-tab="start" aria-selected="true"><i>0</i>Start</button>
-      <button role="tab" type="button" data-tab="count" aria-selected="false"><i>1</i>Zählen</button>
-      <button role="tab" type="button" data-tab="small" aria-selected="false"><i>2</i>Sortieren</button>
-      <button role="tab" type="button" data-tab="tkg" aria-selected="false"><i>3</i>TKG</button>
-      <button role="tab" type="button" data-tab="saved" aria-selected="false"><i>4</i>Chargen</button>
+      <button role="tab" type="button" data-tab="start" aria-selected="true"><i>1</i>Start</button>
+      <button role="tab" type="button" data-tab="count" aria-selected="false"><i>2</i>Zählen</button>
+      <button role="tab" type="button" data-tab="small" aria-selected="false"><i>3</i>Sortieren</button>
+      <button role="tab" type="button" data-tab="tkg" aria-selected="false"><i>4</i>Wiegen</button>
+      <button role="tab" type="button" data-tab="saved" aria-selected="false"><i>5</i>Ergebnisse</button>
     </div>
 
     <div class="pane" data-pane="start">
@@ -391,17 +431,18 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
       <p class="note">Kein eigenes Foto zur Hand? Zum Ausprobieren ist ein <b>Beispielfoto</b> geladen, ein neues kommt über das <b>+</b> oben rechts.</p>
       <button class="linkbtn" type="button" id="guideLink">Ganze Anleitung ansehen</button>
       <p class="note disclaimer"><b>Experimentell.</b> Nutzung auf eigene Gefahr, ohne Gewähr. Zählungen bitte stichprobenhaft von Hand nachprüfen. Daten werden nur im Browser dieses Geräts gespeichert.</p>
+      <p class="ver">tally <span class="vnum"></span></p>
     </div>
 
     <div class="pane" data-pane="count" hidden>
-      <input id="sens" type="range" min="0" max="100" value="50" hidden><output id="sensO" hidden>50</output>
-      <input id="sep" type="range" min="0" max="20" value="5" hidden><output id="sepO" hidden>5</output>
+      <input id="sens" type="range" min="-5" max="5" value="0" hidden><output id="sensO" hidden>0</output>
+      <input id="sep" type="range" min="-5" max="5" value="0" hidden><output id="sepO" hidden>0</output>
       <p class="hint ihint"><span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 010 16z" fill="currentColor"/></svg>Empfindlichkeit</span><span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="7.5" cy="12" rx="3.3" ry="6.5" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="16.5" cy="12" rx="3.3" ry="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 5v14" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2"/></svg>Körner trennen</span><span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Korrigieren &amp; Zählbereich</span></p>
       <div class="legend">
-        <span><i class="dot ring" style="border-color:var(--mark)"></i>erkanntes Korn</span>
-        <span><i class="dot num" style="background:var(--mark)">3</i>Gruppe, Zahl = Körner darin</span>
-        <span><i class="dot ring" style="border-color:var(--grain)"></i>von Hand</span>
-        <span><i class="dot" style="background:var(--off)"></i>entfernt</span>
+        <span><i class="dot pt" style="background:var(--mark)"></i>Korn</span>
+        <span><i class="dot num" style="background:var(--mark);color:var(--on-mark)">3</i>Sammelpunkt: antippen zoomt hinein</span>
+        <span><i class="dot pt" style="background:var(--grain)"></i>von Hand gesetzt</span>
+        <span><i class="dot x" style="color:var(--off)">✕</i>gelöscht</span>
       </div>
     </div>
 
@@ -413,7 +454,7 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
           <input id="small" type="range" min="0" max="90" step="5" value="55">
           <button class="step" type="button" data-for="small" data-d="5" aria-label="Kleinkorn-Grenze erhöhen">+</button>
         </div>
-        <p class="note">Blau gestrichelt: kleiner als dieser Anteil eines typischen Korns.</p>
+        <p class="note">Blauer Punkt im Bild: kleiner als dieser Anteil eines typischen Korns.</p>
         <label class="check"><input type="checkbox" id="hl"> Kleinkorn im Bild hervorheben</label>
       </div>
       <div class="ctl">
@@ -421,6 +462,13 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
         <div class="seg basisSeg" id="basis" role="group" aria-label="Was wird gewogen">
           <button type="button" data-v="all">Mit Kleinkorn</button>
           <button type="button" data-v="full">Ohne Kleinkorn</button>
+        </div>
+      </div>
+      <div class="ctrlbox" id="ctrlBox" hidden>
+        <p class="note" id="ctrlText"></p>
+        <div class="btnrow">
+          <button class="primary" type="button" data-ctrl="cam">Kontrollfoto aufnehmen</button>
+          <button type="button" data-ctrl="file">Aus Galerie</button>
         </div>
       </div>
       <hr class="rule">
@@ -476,7 +524,7 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
     </div>
 
     <div class="pane" data-pane="saved" hidden>
-      <p class="note" id="storeNote">Gespeichert wird nur in diesem Browser auf diesem Gerät. Beim Löschen der Browserdaten sind die Proben weg. Wichtige Ergebnisse deshalb über „Teilen“ sichern.</p>
+      <p class="note" id="storeNote">Gespeichert wird nur in diesem Browser auf diesem Gerät. Beim Löschen der Browserdaten sind die Proben weg. Wichtige Ergebnisse sichern: Probe antippen, Ergebnisbild teilen oder speichern.</p>
       <div id="savedList"><p class="empty">Gespeicherte Proben erscheinen hier, gruppiert nach Kultur und Sorte mit mittlerem TKG.</p></div>
     </div>
   </div>
@@ -487,10 +535,12 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
   <div class="sheet">
     <h2 id="smallAskT">Kleinkorn aussortiert?</h2>
     <p class="note" style="font-size:14px">Für „ohne Kleinkorn“ müssen alle <b id="smallAskN">0</b> blau markierten Kleinkörner vor dem Wiegen aus der Probe genommen werden – so wie das Saatgut nach der Reinigung. Sonst stimmt das TKG nicht.</p>
+    <p class="note" style="font-size:14px">Am sichersten: nach dem Aussortieren ein <b>Kontrollfoto</b> der Probe machen. tally zählt neu und prüft, ob das Kleinkorn wirklich raus ist. Verrutschte Körner sind dabei egal.</p>
     <div class="btnrow" style="flex-direction:column">
-      <button class="primary" id="smallYes" type="button">Ja, alle sind entfernt</button>
+      <button class="primary" id="smallCtrl" type="button">Aussortiert – Kontrollfoto machen</button>
       <button id="smallShow" type="button">Kleinkörner im Bild zeigen</button>
-      <button id="smallNo" type="button">Nein, mit Kleinkorn wiegen</button>
+      <button id="smallYes" type="button">Ohne Kontrollfoto weiter</button>
+      <button id="smallNo" type="button">Doch mit Kleinkorn wiegen</button>
     </div>
   </div>
 </div>
@@ -506,15 +556,16 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
   </div>
 </div>
 <div class="shareview" id="shareView" hidden role="dialog" aria-modal="true" aria-label="Ergebnis als Bild">
-  <div class="sv-top"><b>Ergebnis als Bild</b><button id="shareClose" type="button" class="sv-x" aria-label="Schließen">✕</button></div>
+  <div class="sv-top"><b>Ergebnis als Bild</b></div>
   <div class="sv-img"><img id="shareImg" alt="Ergebnis als Bild"></div>
   <div class="sv-bar">
     <p class="msg" id="shareMsg"></p>
     <div class="btnrow">
       <button class="primary" id="shareNow" type="button" hidden>Teilen</button>
-      <button id="saveImg" type="button" hidden>Speichern</button>
+      <button class="primary" id="saveImg" type="button" hidden>Speichern</button>
+      <button id="shareClose" type="button">Schließen</button>
     </div>
-    <p class="note">Beim Teilen bietet das Handy auch „In Galerie speichern“ an. Oder lange auf das Bild drücken.</p>
+    <p class="note" id="shareNote">Beim Teilen bietet das Handy auch „In Galerie speichern“ an.</p>
   </div>
 </div>
 
@@ -523,18 +574,21 @@ input[type=range]{width:100%;margin:0;height:42px;accent-color:var(--grain);curs
     <h2 id="guideTitle">So bestimmst du das TKG</h2>
     <ol class="steps">
       <li><div><b>Körner verteilen</b><p>Eine Probe einlagig auslegen, Körner möglichst ohne Berührung. Einige hundert Körner pro Foto reichen. Zum Ausprobieren ist ein Beispielfoto geladen.</p></div></li>
-      <li><div><b>Foto machen</b><p>Einfarbiger, glatter Untergrund in einer anderen Farbe als die Körner. Gleichmäßiges Licht ohne harte Schatten, Handy gerade von oben, nur die Probe im Bild.</p><span class="where">Reiter 0 · Start oder + oben</span></div></li>
-      <li><div><b>Zählen</b><p>Mit Empfindlichkeit und Trennen einstellen, bis fast jedes Korn markiert ist. Über den Stift Körner setzen, löschen und den Zählbereich festlegen.</p><span class="where">Reiter 1 · Zählen</span></div></li>
-      <li><div><b>Sortieren</b><p>Für das TKG des gereinigten Saatguts die blau markierten Kleinkörner aus der Probe nehmen und „Ohne Kleinkorn“ wählen. Sonst mit Kleinkorn wiegen. Farben unterscheiden ist optional, z. B. für Fremdkorn.</p><span class="where">Reiter 2 · Sortieren</span></div></li>
-      <li><div><b>Wiegen</b><p>Genau die gezählten Körner wiegen – mit oder ohne Kleinkorn, passend zur Auswahl – und das Gewicht in Gramm eintragen.</p><span class="where">Reiter 3 · TKG</span></div></li>
-      <li><div><b>Speichern und teilen</b><p>Mit Kultur, Sorte, Charge und Probe speichern. Mehrere Proben einer Charge werden gemittelt. Gespeichert wird nur in diesem Browser – über „Teilen“ das Ergebnisbild sichern oder weitergeben.</p><span class="where">Reiter 3 und 4</span></div></li>
+      <li><div><b>Foto machen</b><p>Einfarbiger, glatter Untergrund in einer anderen Farbe als die Körner. Gleichmäßiges Licht ohne harte Schatten, Handy gerade von oben, nur die Probe im Bild.</p><span class="where">Reiter 1 · Start oder + oben</span></div></li>
+      <li><div><b>Zählen</b><p>tally stellt Empfindlichkeit und Trennen selbst ein. Jedes Korn bekommt einen Punkt; wo es eng wird, steht ein Punkt mit Zahl – antippen oder hineinzoomen. Bei Bedarf nachjustieren. „#“ nummeriert die Körner, der Stift setzt und löscht Körner und legt den Zählbereich fest.</p><span class="where">Reiter 2 · Zählen</span></div></li>
+      <li><div><b>Sortieren</b><p>Für das TKG des gereinigten Saatguts die blau markierten Kleinkörner aus der Probe nehmen, „Ohne Kleinkorn“ wählen und ein Kontrollfoto machen – tally prüft, ob das Kleinkorn wirklich raus ist. Sonst mit Kleinkorn wiegen. Farben unterscheiden ist optional, z. B. für Fremdkorn.</p><span class="where">Reiter 3 · Sortieren</span></div></li>
+      <li><div><b>Wiegen</b><p>Genau die gezählten Körner wiegen – mit oder ohne Kleinkorn, passend zur Auswahl – und das Gewicht in Gramm eintragen.</p><span class="where">Reiter 4 · Wiegen</span></div></li>
+      <li><div><b>Speichern und teilen</b><p>Mit Kultur, Sorte, Charge und Probe speichern. Mehrere Proben einer Charge werden gemittelt. Gespeichert wird nur in diesem Browser – über „Teilen“ das Ergebnisbild sichern oder weitergeben.</p><span class="where">Reiter 4 · Wiegen und 5 · Ergebnisse</span></div></li>
     </ol>
     <p class="note disclaimer"><b>Experimentell.</b> Nutzung auf eigene Gefahr, ohne Gewähr für Richtigkeit. Gruppen von Körnern werden geschätzt – Zählungen bitte stichprobenhaft von Hand prüfen.</p>
     <button class="primary" id="guideClose" type="button">Los geht’s</button>
+    <p class="ver">tally <span class="vnum"></span></p>
   </div>
 </div>
 
 <script>
+// Version: 0.<Veröffentlichung>.<Testversion> – Veröffentlichung = x.y.0, Testversionen danach x.y.1, x.y.2 …
+const VERSION='0.2.0';
 (()=>{
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d',{willReadFrequently:true});
 const ovc=document.getElementById('ovc'),octx=ovc.getContext('2d');
@@ -546,12 +600,24 @@ const S={src:null,w:0,h:0,comps:[],median:0,
   cls:'all',cmode:'off',cmodeAuto:true,classes:[],pickFor:null,clf:null,view:'photo',basis:'all',counts:null};
 const fmt=n=>n.toLocaleString('de-DE');
 function escH(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-const fmtG=n=>n.toLocaleString('de-DE',{minimumFractionDigits:1,maximumFractionDigits:1});
+// 3 gültige Ziffern, egal wo das Komma steht: 4,87 · 47,1 · 512 (Raps braucht 2 Nachkommastellen, Bohnen keine)
+function fmtS(n,sig=3){if(!isFinite(n))return '–';if(n===0)return '0';const r=Number(n.toPrecision(sig)),d=Math.max(0,sig-1-Math.floor(Math.log10(Math.abs(r))));
+  return r.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d})}
+const fmtG=n=>fmtS(n);
+
+/* ---------- Zurück-Taste: offene Ebenen (Dialoge, Ergebnisbild, Bearbeiten) zuerst schließen ---------- */
+// Jede geöffnete Ebene legt einen Eintrag in den Browser-Verlauf. Zurück schließt die oberste Ebene statt die Seite zu verlassen.
+const layers=[];let skipPop=0;
+function layerOpen(name,close){if(layers.some(l=>l.name===name))return;layers.push({name,close});try{history.pushState({tally:name},'')}catch(e){}}
+function layerDrop(name){const i=layers.findIndex(l=>l.name===name);if(i<0)return;layers.splice(i,1);skipPop++;try{history.back()}catch(e){skipPop--}}
+addEventListener('popstate',()=>{if(skipPop){skipPop--;return}const l=layers.pop();if(l)l.close()});
+function showDlg(id){$(id).hidden=false;layerOpen(id,()=>{$(id).hidden=true})}
+function hideDlg(id){$(id).hidden=true;layerDrop(id)}
 
 /* ---------- Anleitung ---------- */
 const guide=$('guide');
-const openGuide=()=>{guide.hidden=false;$('guideClose').focus()};
-const closeGuide=()=>{guide.hidden=true;try{localStorage.setItem('tally_guide','1')}catch(e){}};
+const openGuide=()=>{guide.hidden=false;$('guideClose').focus();layerOpen('guide',()=>closeGuide())};
+const closeGuide=()=>{guide.hidden=true;layerDrop('guide');try{localStorage.setItem('tally_guide','1')}catch(e){}};
 $('helpBtn').onclick=openGuide;$('guideLink').onclick=openGuide;$('guideClose').onclick=closeGuide;
 guide.addEventListener('click',e=>{if(e.target===guide)closeGuide()});
 try{if(!localStorage.getItem('tally_guide'))openGuide()}catch(e){openGuide()}
@@ -559,13 +625,13 @@ try{if(!localStorage.getItem('tally_guide'))openGuide()}catch(e){openGuide()}
 /* ---------- Foto-Menü ---------- */
 const menu=$('menu'),addBtn=$('addBtn');
 const setMenu=open=>{menu.hidden=!open;addBtn.setAttribute('aria-expanded',open)};
-addBtn.addEventListener('click',e=>{e.stopPropagation();
-  if(menu.hidden&&isDirty()){$('discard').hidden=false;return}
+addBtn.addEventListener('click',e=>{e.stopPropagation();S.loadingCtrl=false;
+  if(menu.hidden&&isDirty()){showDlg('discard');return}
   setMenu(menu.hidden)});
 function isDirty(){return !!(S.src&&!S.sample&&!S.saved&&(S.hist?.length||S.roi||$('weight').value.trim()))}
-$('discardNo').onclick=()=>{$('discard').hidden=true};
-$('discardSave').onclick=()=>{$('discard').hidden=true;selectTab('tkg')};
-$('discardYes').onclick=()=>{$('discard').hidden=true;setMenu(true)};
+$('discardNo').onclick=()=>hideDlg('discard');
+$('discardSave').onclick=()=>{hideDlg('discard');selectTab('tkg')};
+$('discardYes').onclick=()=>{hideDlg('discard');setMenu(true)};
 document.addEventListener('click',e=>{if(!menu.hidden&&!menu.contains(e.target))setMenu(false)});
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;setMenu(false);if(!guide.hidden)closeGuide();else if(S.editing)setEditing(false)});
 
@@ -582,9 +648,13 @@ async function setImage(source,label){
   const o=off.getContext('2d',{willReadFrequently:true});o.imageSmoothingQuality='high';o.drawImage(source,0,0,w,h);
   // 1. Foto sofort zeigen
   S.src=off;S.w=w;S.h=h;cv.width=ovc.width=w;cv.height=ovc.height=h;
-  S.F=null;S.comps=[];S.allComps=[];S.counts=null;S.adj=[];S.added=[];S.hist=[];S.roi=null;S.basisOk=true;S.basis='all';S.saved=false;S.cmodeAuto=true;S.sample=label.startsWith('Beispiel');
+  const isCtrl=!!(S.loadingCtrl&&S.ctrl);S.loadingCtrl=false;
+  S.G=null;S.bubbles=[];drawScreen(); // Punkte des vorigen Fotos sofort weg
+  S.F=null;S.comps=[];S.allComps=[];S.counts=null;S.adj=[];S.added=[];S.hist=[];S.roi=null;S.saved=false;S.cmodeAuto=true;S.sample=label.startsWith('Beispiel');
+  if(isCtrl){S.basis='full';S.ctrl.done=false;S.ctrlRun=true}else{S.basis='all';S.ctrl=null;S.ctrlRun=false}
+  S.basisOk=true;
   ctx.drawImage(off,0,0);octx.clearRect(0,0,w,h);
-  $('src').textContent=label;$('weight').value='';$('saveMsg').textContent='';
+  $('src').textContent=label;if(!isCtrl)$('weight').value='';$('saveMsg').textContent='';
   $('total').textContent='…';$('liveN').textContent='…';$('breakdown').textContent='Wird ausgewertet';
   Z.s=1;S.fit=null;layout();
   progress('Foto wird vorbereitet',0.15);await tick();if(id!==loadId)return;
@@ -593,15 +663,17 @@ async function setImage(source,label){
   progress('Untergrund wird erkannt',0.45);await tick();if(id!==loadId)return;
   prepare(ch,w,h);
   workerInit();
-  progress('Körner werden gezählt',0.8);await tick();if(id!==loadId)return;
-  S.onResult=()=>{progress(null);if(!S.roi&&S.comps.length>=5)fitTo(countedBox(),0.04)};
+  progress('Einstellung wird optimiert',0.7);await tick();if(id!==loadId)return;
+  await new Promise(r=>autoTune(r));if(id!==loadId)return;
+  progress('Körner werden gezählt',0.9);
+  S.onResult=()=>{progress(null);if(!S.roi&&S.comps.length>=5)fitTo(countedBox(),0.04);if(S.ctrlRun){S.ctrlRun=false;selectTab('small');checkCtrl()}};
   run();
 }
 async function loadFile(f){
   setMenu(false);
   if(!f)return;
   if(!f.type.startsWith('image/')&&!/\.(jpe?g|png|webp|heic)$/i.test(f.name)){$('src').textContent='Keine Bilddatei. Bitte JPG oder PNG wählen.';return}
-  progress('Foto wird geladen',0.05);selectTab('count');
+  progress('Foto wird geladen',0.05);if(!S.loadingCtrl)selectTab('count');
   try{
     let src;
     if(window.createImageBitmap){try{src=await createImageBitmap(f)}catch(e){src=null}}
@@ -718,6 +790,81 @@ function label(m,w,h,lab,st,Lv,dT){
   return comps}
 const median=arr=>{if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b);return s[Math.floor(s.length/2)]};
 
+// Löcher in der Maske schließen, die deutlich kleiner als ein Korn sind (Glanzpunkte auf dunklen Körnern)
+function fillHoles(m,w,h,lab,st,hint){
+  const n=w*h;let maxA=hint||0;
+  if(!maxA){const fg=label(m,w,h,lab,st,m,-Infinity).map(c=>c.a).filter(a=>a>=20).sort((x,y)=>x-y);
+    if(!fg.length)return;maxA=fg[fg.length>>1]*0.05}
+  lab.fill(0);
+  for(let i=0;i<n;i++){if(m[i]||lab[i])continue;let qa=0,qb=0,border=0;st[qb++]=i;lab[i]=1;
+    while(qa<qb){const p=st[qa++],x=p%w;if(x===0||x===w-1||p<w||p>=n-w)border=1;
+      if(x>0&&!m[p-1]&&!lab[p-1]){lab[p-1]=1;st[qb++]=p-1}
+      if(x<w-1&&!m[p+1]&&!lab[p+1]){lab[p+1]=1;st[qb++]=p+1}
+      if(p>=w&&!m[p-w]&&!lab[p-w]){lab[p-w]=1;st[qb++]=p-w}
+      if(p<n-w&&!m[p+w]&&!lab[p+w]){lab[p+w]=1;st[qb++]=p+w}}
+    if(qa===qb&&!border&&qb<=maxA)for(let k=0;k<qb;k++)m[st[k]]=1}
+}
+// Kerne (lab) innerhalb der Maske m gleichmäßig wachsen lassen; übrige Maskenteile bekommen eigene Nummern
+function regrow(m,lab,w,h,st,Lv,nid){
+  const n=w*h;let qa=0,qb=0;
+  for(let i=0;i<n;i++)if(lab[i])st[qb++]=i;
+  while(qa<qb){const p=st[qa++],x=p%w,id=lab[p];
+    if(x>0&&m[p-1]&&!lab[p-1]){lab[p-1]=id;st[qb++]=p-1}
+    if(x<w-1&&m[p+1]&&!lab[p+1]){lab[p+1]=id;st[qb++]=p+1}
+    if(p>=w&&m[p-w]&&!lab[p-w]){lab[p-w]=id;st[qb++]=p-w}
+    if(p<n-w&&m[p+w]&&!lab[p+w]){lab[p+w]=id;st[qb++]=p+w}}
+  for(let i=0;i<n;i++){if(!m[i]||lab[i])continue;nid++;let sp=0;st[sp++]=i;lab[i]=nid;
+    while(sp){const p=st[--sp],x=p%w;
+      if(x>0&&m[p-1]&&!lab[p-1]){lab[p-1]=nid;st[sp++]=p-1}
+      if(x<w-1&&m[p+1]&&!lab[p+1]){lab[p+1]=nid;st[sp++]=p+1}
+      if(p>=w&&m[p-w]&&!lab[p-w]){lab[p-w]=nid;st[sp++]=p-w}
+      if(p<n-w&&m[p+w]&&!lab[p+w]){lab[p+w]=nid;st[sp++]=p+w}}}
+  // Bruchstücke wieder anfügen: ein kleines Teil, das an einer langen Kante an ein Nachbarteil grenzt, ist ein zerteiltes Korn
+  // (ein anliegendes Kleinkorn berührt nur kurz)
+  {const Aa=new Float64Array(nid+1);for(let i=0;i<n;i++)if(lab[i])Aa[lab[i]]++;
+   const v=[];for(let id=1;id<=nid;id++)if(Aa[id]>=4)v.push(Aa[id]);v.sort((x,y)=>x-y);const md=v.length?v[v.length>>1]:0;
+   const ct=new Map(),sm=new Uint8Array(nid+1);for(let id=1;id<=nid;id++)sm[id]=Aa[id]<md*0.75?1:0;
+   for(let i=0,x=0;i<n;i++,x=x===w-1?0:x+1){const a=lab[i];if(!a)continue;
+     if(x<w-1){const b=lab[i+1];if(b&&b!==a&&(sm[a]||sm[b])){const k=a<b?a*65536+b:b*65536+a;ct.set(k,(ct.get(k)||0)+1)}}
+     if(i<n-w){const b=lab[i+w];if(b&&b!==a&&(sm[a]||sm[b])){const k=a<b?a*65536+b:b*65536+a;ct.set(k,(ct.get(k)||0)+1)}}}
+   const best=new Map();
+   for(const [k,c] of ct){const a=Math.floor(k/65536),b=k%65536;
+     for(const [p,q] of [[a,b],[b,a]])if(Aa[p]<md*0.75&&c>=0.6*Math.sqrt(Aa[p])){const o=best.get(p);if(!o||c>o.c)best.set(p,{q,c})}}
+   if(best.size){const par=new Int32Array(nid+1);for(let i=0;i<=nid;i++)par[i]=i;
+     const f=x=>{while(par[x]!==x)x=par[x]=par[par[x]];return x};
+     for(const [p,o] of best){const ra=f(p),rb=f(o.q);if(ra!==rb)par[ra]=rb}
+     for(let i=0;i<n;i++)if(lab[i])lab[i]=f(lab[i])}}
+  const A=new Float64Array(nid+1),X=new Float64Array(nid+1),Y=new Float64Array(nid+1),Ls=new Float64Array(nid+1),E=new Uint8Array(nid+1);
+  for(let y=0,i=0;y<h;y++)for(let x=0;x<w;x++,i++){const id=lab[i];if(!id)continue;A[id]++;X[id]+=x;Y[id]+=y;Ls[id]+=Lv[i];
+    if(x===0||x===w-1||y===0||y===h-1)E[id]=1}
+  const out=[];for(let id=1;id<=nid;id++)if(A[id]>=4)out.push({id,a:A[id],cx:X[id]/A[id],cy:Y[id]/A[id],l:Ls[id]/A[id],df:0,edge:E[id]});
+  return out}
+// Kornkerne in einem Teil: Fläche schrittweise vom Rand her abtragen (Randabstand > t) und je Stufe die getrennten
+// Kerne zählen. Berührende Körner zerfallen in eigene Kerne, ein längliches Korn bleibt ein Kern.
+// px = Bildpunkte des Teils (Index im Bild), minA = kleinste Kernfläche. Rückgabe: je Stufe die Kerne mit Mitte und Fläche.
+function coresOf(px,w,minA){
+  let x0=1e9,y0=1e9,x1=-1,y1=-1;
+  for(const p of px){const x=p%w,y=(p-x)/w;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  const bw=x1-x0+3,bh=y1-y0+3,d=new Float32Array(bw*bh);
+  for(const p of px){const x=p%w,y=(p-x)/w;d[(y-y0+1)*bw+(x-x0+1)]=1e6}
+  for(let y=1;y<bh-1;y++)for(let x=1;x<bw-1;x++){const i=y*bw+x;if(!d[i])continue;
+    d[i]=Math.min(d[i],d[i-1]+1,d[i-bw]+1,d[i-bw-1]+1.414,d[i-bw+1]+1.414)}
+  for(let y=bh-2;y>0;y--)for(let x=bw-2;x>0;x--){const i=y*bw+x;if(!d[i])continue;
+    d[i]=Math.min(d[i],d[i+1]+1,d[i+bw]+1,d[i+bw+1]+1.414,d[i+bw-1]+1.414)}
+  let dm=0;for(let i=0;i<d.length;i++)if(d[i]>dm)dm=d[i];
+  const lab=new Int32Array(bw*bh),st=new Int32Array(bw*bh),levels=[];
+  for(let f=0.2;f<0.93;f+=0.075){const t=dm*f;lab.fill(0);let id=0;const cs=[];
+    for(let i=0;i<d.length;i++){if(d[i]<=t||lab[i])continue;id++;let sp=0,a=0,sx=0,sy=0,dx=-1,bx=0,by=0;st[sp++]=i;lab[i]=id;
+      while(sp){const q=st[--sp],x=q%bw,y=(q-x)/bw;a++;sx+=x;sy+=y;if(d[q]>dx){dx=d[q];bx=x;by=y}
+        for(const r of [q-1,q+1,q-bw,q+bw])if(d[r]>t&&!lab[r]){lab[r]=id;st[sp++]=r}}
+      if(a>=minA*(1-f))cs.push({x:sx/a+x0-1,y:sy/a+y0-1,px:bx+x0-1,py:by+y0-1,a,dx})}
+    levels.push(cs)}
+  return levels;
+}
+// Kleine Bildpunkt-Schleifen als eigene Funktionen: so optimiert die JavaScript-Maschine sie zuverlässig
+function pxThresh(src,dst,t){for(let i=0,n=dst.length;i<n;i++)dst[i]=src[i]>t?1:0}
+function pxClear(lab,flag){for(let i=0,n=lab.length;i<n;i++){const v=lab[i];if(v&&flag[v])lab[i]=0}}
+function pxFirst(lab,lab2,mx){const o=new Int32Array(mx+1);for(let i=0,n=lab.length;i<n;i++){const id=lab[i];if(id&&!o[id])o[id]=lab2[i]}return o}
 // Konvexität (Fläche / Fläche der konvexen Hülle) je Teil
 function solidity(lab,w,h,comps){
   const byId=new Map();for(const c of comps){c.hp=[];byId.set(c.id,c)}
@@ -737,64 +884,165 @@ function solidity(lab,w,h,comps){
 // Reine Auswertung – läuft im Hintergrundprozess (oder als Ersatz direkt)
 function analyze(P,D){
   const {w,h}=P,{F,L,buf}=D,DUST=P.dust;
-  const t=Math.max(3,P.thr*Math.pow(2,(50-P.sens)/35)); // 50 = automatisch, 0…100 ≈ ×2,7 … ×0,37
+  const t=Math.max(3,P.thr*Math.pow(2,(50-P.sens)/25)); // 50 = Otsu-Schwelle, 0…100 ≈ ×4 … ×0,25
   const m=buf.m;
-  for(let i=0;i<m.length;i++)m[i]=F[i]>t?1:0;
-  // Trennen: Körner um 0,3 Bildpunkte je Stufe schrumpfen (Abstand zum Rand per Distanztransformation)
-  let cur=m;const T=P.sep*0.3;
-  if(T>0){const dt=distT(m,w,h,buf.dt),a=buf.a;for(let i=0;i<m.length;i++)a[i]=dt[i]>T?1:0;cur=a}
+  // Zwischenspeicher je Schwelle: Maske, Randabstand und ungeschrumpfte Teile hängen nur von der Empfindlichkeit ab,
+  // nicht vom Trennen – beim Durchprobieren der Trennstufen und beim Trennen-Regler nicht jedes Mal neu rechnen.
+  let MC=D.mc&&D.mc.t===t&&D.mc.n===m.length?D.mc:null;
+  if(MC)m.set(MC.m);
+  else{pxThresh(F,m,t);
+    fillHoles(m,w,h,buf.lab,buf.st,D.holeA); // Glanzpunkte in dunklen Körnern schließen
+    // Speicher einmal je Foto anlegen und wiederverwenden (neu anlegen kostet bei jedem Schritt Zeit)
+    const old=D.mc&&D.mc.n===m.length?D.mc:null;
+    MC=D.mc={t,n:m.length,m:old?old.m:new Uint8Array(m.length),dtB:old?old.dtB:null,labB:old?old.labB:null,dt:false,lab2:false};MC.m.set(m)}
+  // Trennen: Körner um 0,5 Bildpunkte je Stufe schrumpfen (Abstand zum Rand per Distanztransformation)
+  let cur=m;const T=P.sep*0.5*(P.k||1);
+  if(T>0){let dt=buf.dt;if(MC.dt)dt.set(MC.dtB);else{distT(m,w,h,dt);(MC.dtB||(MC.dtB=new Float32Array(m.length))).set(dt);MC.dt=true}
+    const a=buf.a;pxThresh(dt,a,T);cur=a}
   const R=P.roi;
-  let darkT;
-  {const v=[],step=Math.max(1,Math.floor(m.length/40000));
-   for(let i=0;i<m.length;i+=step)if(cur[i]){const x=i%w,y=(i-x)/w;if(!R||inPoly(x,y,R))v.push(L[i])}
-   darkT=splitDark(v)}
-  const raw=label(cur,w,h,buf.lab,buf.st,L,-Infinity).filter(c=>c.a>=4);
-  // Fläche je Korn in der ungeschrumpften Maske: Haufen werden bei jeder Trennstufe gleich geschätzt
+  let darkT=null,darkInfo=null;
+  let raw;
   if(cur!==m){
-    const orig=label(m,w,h,buf.lab2,buf.st,L,-Infinity),sumE=new Float64Array(orig.length+1),lab=buf.lab,lab2=buf.lab2;
-    const byId=new Map(raw.map(c=>[c.id,c]));
-    for(const c of raw)c.oid=0;
-    for(let i=0;i<lab.length;i++){const id=lab[i];if(id){const c=byId.get(id);if(c&&!c.oid)c.oid=lab2[i]}}
-    for(const c of raw)if(c.oid)sumE[c.oid]+=c.a;
-    for(const c of raw)c.ao=c.oid?orig[c.oid-1].a*c.a/sumE[c.oid]:c.a;
-  } else for(const c of raw)c.ao=c.a;
+    // Geschrumpfte Kerne wieder auf die volle Kornform wachsen lassen (jeder Bildpunkt gehört zum nächsten Kern).
+    // Teile ohne überlebenden Kern (schmale Körner) bleiben als eigene Teile erhalten.
+    const lab=buf.lab,cores=label(cur,w,h,lab,buf.st,L,-Infinity),cm=median(cores.filter(c=>c.a>=4).map(c=>c.a)),tiny=new Uint8Array(cores.length+1);
+    let nt=0;for(const c of cores)if(c.a<Math.max(4,cm*0.15)){tiny[c.id]=1;nt++}
+    if(nt)pxClear(lab,tiny);
+    raw=regrow(m,lab,w,h,buf.st,L,cores.length);
+    const lab2=buf.lab2;if(MC.lab2)lab2.set(MC.labB);else{label(m,w,h,lab2,buf.st,L,-Infinity);(MC.labB||(MC.labB=new Int32Array(m.length))).set(lab2);MC.lab2=true}
+    let mx=0;for(const c of raw)if(c.id>mx)mx=c.id;const oidA=pxFirst(lab,lab2,mx);
+    for(const c of raw)c.oid=oidA[c.id];
+    for(const c of raw)c.ao=c.a;
+  } else {raw=label(cur,w,h,buf.lab,buf.st,L,-Infinity).filter(c=>c.a>=4);for(const c of raw)c.ao=c.a}
   // ohne Zählbereich: alles am Bildrand weglassen (Tischkante, Papierrand, angeschnittene Körner)
   const mg=Math.max(w,h)*0.02;
   let comps=R?raw.filter(c=>inPoly(c.cx,c.cy,R)):raw.filter(c=>!c.edge&&c.cx>mg&&c.cy>mg&&c.cx<w-mg&&c.cy<h-mg);
   // Fläche eines Einzelkorns: von den kleineren Teilen aus suchen, damit dichte Proben mit vielen Gruppen nicht verfälschen
   solidity(buf.lab,w,h,comps);
-  const srt=comps.map(c=>c.ao).sort((x,y)=>x-y);
-  let med=srt.length?srt[Math.floor(srt.length*0.3)]:0;
-  for(let it=0;it<5&&med;it++){const v=srt.filter(a=>a>med*0.6&&a<med*1.5);if(v.length<3)break;med=median(v)}
+  const srt0=comps.map(c=>c.ao).sort((x,y)=>x-y),m0=srt0.length?srt0[srt0.length>>1]:0;
+  const srt=srt0.filter(a=>a>=m0*0.15);
+  // Typische Einzelkorn-Fläche = häufigste Teilgröße (Dichtekurve über log(Fläche)).
+  // Liegt bei der halben Größe eine fast ebenso häufige Gruppe, sind die größeren Teile Paare -> kleinere nehmen.
+  let med=srt.length?median(srt):0;
+  if(srt.length>=6){
+    const lv=srt.map(a=>Math.log(a)),bw=0.12,lo=lv[0]-0.3,hi=lv[lv.length-1]+0.3,G=200,step=(hi-lo)/G,den=new Float64Array(G+1);
+    // Dichte über ein Histogramm mit Glockenkurven-Glättung (gleiches Ergebnis wie je Teil eine Glocke, aber viel schneller)
+    {const hist=new Float64Array(G+1);for(const v of lv){const gi=(v-lo)/step,g0=Math.floor(gi),fr=gi-g0;hist[g0]+=1-fr;if(g0<G)hist[g0+1]+=fr}
+     const K=Math.ceil(3*bw/step),kern=new Float64Array(2*K+1);for(let j=-K;j<=K;j++){const z=j*step/bw;kern[j+K]=Math.exp(-0.5*z*z)}
+     for(let g=0;g<=G;g++){let d=0;const a=Math.max(0,g-K),b=Math.min(G,g+K);for(let j=a;j<=b;j++)d+=hist[j]*kern[j-g+K];den[g]=d}}
+    let gi=0;for(let g=1;g<=G;g++)if(den[g]>den[gi])gi=g;
+    const xh=lo+gi*step-Math.LN2;let gh=-1;
+    for(let g=0;g<=G;g++){const x=lo+g*step;if(Math.abs(x-xh)<=0.18&&(gh<0||den[g]>den[gh]))gh=g}
+    if(gh>=0&&den[gh]>=0.7*den[gi])gi=gh;
+    med=Math.exp(lo+gi*step);
+  }
+  let nearMed=0;
+  for(let it=0;it<3&&med;it++){const v=srt.filter(a=>a>med*0.75&&a<med*1.33);nearMed=v.length;if(v.length<3)break;med=median(v)}
   // Bessere Referenz: konvexe, nicht übergroße Teile sind fast sicher Einzelkörner
-  {const conv=comps.filter(c=>c.sol>=0.9&&c.ao>med*0.5&&c.ao<med*2.6).map(c=>c.ao);if(conv.length>=5)med=median(conv)}
+  let lowRef=false;
+  {const conv=comps.filter(c=>c.sol>=0.9&&c.ao>med*0.6&&c.ao<med*1.5).map(c=>c.ao);
+   if(conv.length>=5)med=median(conv);
+   else if(comps.length&&(nearMed<5||nearMed<comps.length*0.15)){
+    // Kaum Einzelkörner: Korngröße aus den Gruppen selbst schätzen.
+    // Gruppen schrittweise schrumpfen, bis sich Kornkerne lösen; je Gruppe die höchste Zahl Kerne.
+    lowRef=true;
+    const n=w*h,oLab=cur!==m?buf.lab2:buf.lab;
+    const dt=T>0?buf.dt:distT(m,w,h,buf.dt);
+    const v=[];for(let i=0;i<n;i+=7)if(m[i])v.push(dt[i]);v.sort((x,y)=>x-y);
+    const half=v.length?v[Math.floor(v.length*0.95)]:1;
+    const best=new Map(),core=new Uint8Array(n),cl=new Int32Array(n),seen=new Map();
+    for(let k=0.3;k<0.95;k+=0.1){
+      for(let i=0;i<n;i++)core[i]=dt[i]>k*half?1:0;
+      label(core,w,h,cl,buf.st,L,-Infinity);seen.clear();
+      for(let i=0;i<n;i++){const c=cl[i];if(c&&!seen.has(c))seen.set(c,oLab[i])}
+      const cnt=new Map();for(const o of seen.values())cnt.set(o,(cnt.get(o)||0)+1);
+      for(const [o,c] of cnt)if(c>(best.get(o)||0))best.set(o,c);
+    }
+    let area=0,cores=0;const used=new Set();
+    for(const c of comps){area+=c.ao;const o=cur!==m?c.oid:c.id;if(!used.has(o)){used.add(o);cores+=best.get(o)||1}}
+    if(cores)med=area/cores;
+   }}
+  D.holeA=med*0.05; // Lochgröße für den nächsten Durchlauf (spart eine Zählung)
   comps=comps.filter(c=>c.ao>=med*DUST);
   comps.forEach(c=>{
     const q=c.ao/med;
-    c.n=q<1.5||(c.sol>=0.9&&q<2.3)?1:Math.max(2,Math.round(q));
+    // Stark eingebuchtete Teile (Konvexität < 0,85) ab 1,4 sind zwei sich überdeckende Körner; glatte Teile bis 2,3 sind große Einzelkörner (Bohnen)
+    c.n=q<1.5||(c.sol>=0.94&&q<2.3)?1:Math.max(2,Math.round(q));
     c.small=c.n===1&&P.small>0&&c.ao<med*P.small;
   });
+  // Stark eingebuchtete Teile (Konvexität < 0,85) mit 1,4–1,5 Kornflächen: zwei sich überdeckende Körner verstecken Fläche. Lösen sich beim Abtragen
+  // vom Rand her zwei Kornkerne, sind es zwei; ein langes Einzelkorn (Hafer mit Granne) bleibt ein Kern.
+  // (Allgemeines Aufrunden auch bei 2,25 usw. getestet: Hafer +4 %, Weizen +3,6 % – verworfen.)
+  {const cand=comps.filter(c=>{const q=c.ao/med,f=q-Math.floor(q);return c.sol<0.85&&q>=1.4&&q<1.5&&c.n===1});
+   if(cand.length){const lab=buf.lab;let mx=0;for(const c of cand)if(c.id>mx)mx=c.id;
+     const arr=new Array(mx+1);for(const c of cand)arr[c.id]=[];
+     for(let i=0,n=lab.length;i<n;i++){const v=lab[i];if(v&&v<=mx){const a=arr[v];if(a)a.push(i)}}
+     const byId={get:id=>arr[id]};
+     for(const c of cand){const k=Math.ceil(c.ao/med);if(Math.max(...coresOf(byId.get(c.id),w,med*0.08).map(l=>l.length))>=k)c.n=k}}}
+  if(P.lite)return {comps,med,lowRef};
+  // Hell/Dunkel: an der mittleren Helligkeit ganzer Einzelkörner entscheiden, nicht an Bildpunkten
+  // (jedes Korn hat eine helle und eine schattige Seite – das sind keine zwei Sorten)
+  {const v=comps.filter(c=>c.n===1&&c.ao>=med*0.6).map(c=>c.l);darkInfo=splitGrains(v);darkT=darkInfo&&darkInfo.ok?darkInfo.t:null}
   // Bildpunkte der Haufen gepackt mitgeben (für eine Markierung je Korn)
   const cl=comps.filter(c=>c.n>1),idx=new Map();let tot=0;
   cl.forEach(c=>{c.po=tot;tot+=c.a;c.pn=0;idx.set(c.id,c)});
   const pk=new Int32Array(tot);
-  if(cl.length){const lab=buf.lab;for(let i=0;i<lab.length;i++){const id=lab[i];if(id){const c=idx.get(id);if(c)pk[c.po+c.pn++]=i}}}
+  if(cl.length){const lab=buf.lab;let mx=0;for(const c of cl)if(c.id>mx)mx=c.id;const ca=new Array(mx+1);for(const c of cl)ca[c.id]=c;
+    for(let i=0;i<lab.length;i++){const id=lab[i];if(id&&id<=mx){const c=ca[id];if(c)pk[c.po+c.pn++]=i}}}
   const medA=median(comps.filter(c=>c.n===1).map(c=>c.a))||med;
-  const strip=c=>({id:c.id,a:c.a,ao:c.ao,cx:c.cx,cy:c.cy,n:c.n,small:c.small,po:c.po,pn:c.pn});
-  return {comps:comps.map(strip),raw:raw.map(c=>({a:c.a,ao:c.ao,cx:c.cx,cy:c.cy})),med,medA,darkT,
+  const strip=c=>({id:c.id,a:c.a,ao:c.ao,sol:c.sol,cx:c.cx,cy:c.cy,n:c.n,small:c.small,po:c.po,pn:c.pn});
+  return {darkInfo,comps:comps.map(strip),raw:raw.map(c=>({a:c.a,ao:c.ao,cx:c.cx,cy:c.cy})),med,medA,darkT,lowRef,
     mask:m.slice(),core:cur.slice(),lab:buf.lab.slice(),pk};
 }
+// Empfindlichkeit automatisch: Kornzahl über mehrere Stufen zählen, den längsten Bereich nehmen,
+// in dem sie stabil bleibt (max/min ≤ 1,03), und dessen Mitte wählen. Bei Gleichstand: näher an 50.
+function autoSens(P,D){
+  // nur im Bereich um die Otsu-Schwelle suchen: darüber verschmelzen Schatten und Körner zu einer zweiten, falschen Ruhezone
+  const S0=[];for(let s=30;s<=60;s+=3)S0.push(s);
+  const c=S0.map(s=>{const r=analyze({...P,sens:s},D);let n=0;for(const k of r.comps)n+=k.n;return n});
+  let best=null;
+  for(let a=0;a<c.length;a++){let lo=c[a],hi=c[a];
+    for(let b=a;b<c.length;b++){lo=Math.min(lo,c[b]);hi=Math.max(hi,c[b]);if(!lo||hi/lo>1.03)break;
+      const len=b-a,mid=(S0[a]+S0[b])/2,score=len*100-Math.abs(mid-50);
+      if(!best||score>best.score)best={score,mid}}}
+  return best?Math.round(best.mid/2)*2:50;
+}
+// Trennen automatisch: die Stufe, bei der der größte Teil der Kornfläche in Teilen liegt, die genau wie ein Korn aussehen.
+// Zu wenig Trennen lässt Gruppen übrig, zu viel zerlegt Körner in Bruchstücke – beides senkt diesen Anteil.
+function autoSep(P,D){
+  const sc={};
+  // Maßstab: Einzelkorn-Fläche bei leichtem Trennen (3). Jede Stufe wird daran gemessen, nicht an ihrer eigenen
+  // Referenz – sonst sieht bei zu starkem Trennen alles „einzeln“ aus, wenn die Referenz mitwächst.
+  const r3=analyze({...P,sep:3},D).med;
+  const score=sp=>{if(sc[sp]!=null)return sc[sp];const r=analyze({...P,sep:sp},D);let a1=0,aa=0;
+    for(const c of r.comps){aa+=c.ao;const q=c.ao/r3;if(q>=0.6&&(q<1.5||(c.sol>=0.94&&q<2.3)))a1+=c.ao}
+    return sc[sp]=aa?a1/aa:0};
+  let b=0;for(let sp=0;sp<=20;sp+=2)if(score(sp)>score(b))b=sp;
+  for(const sp of [b-1,b+1])if(sp>=0&&sp<=20)score(sp);
+  const mx=Math.max(...Object.values(sc));
+  return +Object.keys(sc).map(Number).sort((x,y)=>x-y).find(sp=>sc[sp]>=mx-0.01);
+}
+// Halbe Auflösung (2×2 gemittelt) für die automatische Einstellung: ein Viertel der Bildpunkte
+function halfD(D,w,h){const w2=w>>1,h2=h>>1,n2=w2*h2,F=new Float32Array(n2),L=new Float32Array(n2);
+  for(let y=0;y<h2;y++)for(let x=0;x<w2;x++){const i=2*y*w+2*x,j=y*w2+x;
+    F[j]=(D.F[i]+D.F[i+1]+D.F[i+w]+D.F[i+w+1])/4;L[j]=(D.L[i]+D.L[i+1]+D.L[i+w]+D.L[i+w+1])/4}
+  return {F,L,buf:newBuf(n2),w:w2,h:h2}}
+function autoBoth(P,D){const H=D.half||(D.half=halfD(D,P.w,P.h)),P2={...P,w:H.w,h:H.h,k:0.5,roi:null,lite:true};
+  const sens=autoSens({...P2,sep:3},H);return {sens,sep:autoSep({...P2,sens},H)}}
 function newBuf(n){return {m:new Uint8Array(n),a:new Uint8Array(n),lab:new Int32Array(n),lab2:new Int32Array(n),st:new Int32Array(n),dt:new Float32Array(n)}}
 // Hintergrundprozess aus denselben Funktionen bauen
 let worker=null,busy=false,pending=false,imgSeq=0;
 function makeWorker(){
   try{
-    const src=[distT,label,splitDark,inPoly,solidity,analyze,newBuf].map(f=>f.toString()).join('\n')+
+    const src=[distT,label,fillHoles,regrow,coresOf,pxThresh,pxClear,pxFirst,splitGrains,splitDark,inPoly,solidity,analyze,autoSens,autoSep,halfD,autoBoth,newBuf].map(f=>f.toString()).join('\n')+
       '\nconst median='+median.toString()+';\nlet D=null;\nonmessage=e=>{const q=e.data;'+
       'if(q.type==="init"){D={F:q.F,L:q.L,buf:newBuf(q.w*q.h)};return}'+
-      'if(!D)return;const r=analyze(q.P,D);r.seq=q.seq;postMessage(r,[r.mask.buffer,r.core.buffer,r.lab.buffer,r.pk.buffer])};';
+      'if(!D)return;'+
+      'if(q.type==="auto"){const a=autoBoth(q.P,D);postMessage({type:"auto",seq:q.seq,sens:a.sens,sep:a.sep});return}'+
+      'const r=analyze(q.P,D);r.seq=q.seq;r.tag=q.tag;postMessage(r,[r.mask.buffer,r.core.buffer,r.lab.buffer,r.pk.buffer])};';
     const wk=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
-    wk.onmessage=e=>{busy=false;const r=e.data;if(r.seq===imgSeq)applyResult(r);if(pending){pending=false;run()}};
+    wk.onmessage=e=>{const r=e.data;if(r.type==='auto'){if(r.seq===imgSeq&&autoCb){const f=autoCb;autoCb=null;f(r)}return}
+      busy=false;if(r.seq===imgSeq){S.shownTag=r.tag||0;applyResult(r)}if(pending){pending=false;run()}};
     wk.onerror=()=>{worker=null;busy=false;run()};
     return wk;
   }catch(e){return null}
@@ -805,17 +1053,37 @@ function workerInit(){
   if(worker)worker.postMessage({type:'init',w:S.w,h:S.h,F:S.F.slice(),L:S.L.slice()});
   else S.buf=newBuf(S.w*S.h);
 }
-function params(){return {w:S.w,h:S.h,sens:+$('sens').value,sep:+$('sep').value,small:+$('small').value/100,roi:S.roi,thr:S.thr.all,dust:DUST}}
+// Regler zeigen Stufen −5 … +5 um die automatische Einstellung (0 = „A“). Je Stufe: Empfindlichkeit ±4, Trennen ±2.
+const SENS_STEP=4,SEP_STEP=2,SEP_MAX=30;
+const sensVal=()=>(S.autoSens??50)+(+$('sens').value)*SENS_STEP;
+const sepVal=()=>Math.max(0,Math.min(SEP_MAX,(S.autoSep??3)+(+$('sep').value)*SEP_STEP));
+function params(){return {w:S.w,h:S.h,sens:sensVal(),sep:sepVal(),small:+$('small').value/100,roi:S.roi,thr:S.thr.all,dust:DUST}}
+let autoCb=null;
+// Empfindlichkeit für dieses Foto automatisch bestimmen, dann zählen
+function autoTune(done){
+  const fin=v=>{S.autoSens=v.sens;S.autoSep=v.sep;
+    // Trennen kann nicht unter 0 bzw. über das Maximum: Stufenbereich je Foto begrenzen
+    const sp=$('sep');sp.min=Math.max(-5,-Math.floor(v.sep/SEP_STEP));sp.max=Math.min(5,Math.floor((SEP_MAX-v.sep)/SEP_STEP));
+    $('sens').value=0;sp.value=0;sync('sens');sync('sep');done()};
+  if(worker){autoCb=fin;worker.postMessage({type:'auto',seq:imgSeq,P:params()});return}
+  if(!S.buf||S.buf.m.length!==S.w*S.h)S.buf=newBuf(S.w*S.h);
+  fin(autoBoth(params(),S.Dmain=S.Dmain&&S.Dmain.F===S.F?S.Dmain:{F:S.F,L:S.L,buf:S.buf}));
+}
 function run(){
   if(!S.F)return;
-  if(worker){if(busy){pending=true;return}busy=true;worker.postMessage({type:'run',seq:imgSeq,P:params()});return}
+  if(worker){S.tag=(S.tag||0)+1;
+    // sofort sichtbar: Zahl wird blass, bis die neue Auswertung da ist
+    if(S.counts){$('total').classList.add('pre');$('liveN').classList.add('pre')}
+    if(busy){pending=true;return}busy=true;worker.postMessage({type:'run',seq:imgSeq,tag:S.tag,P:params()});return}
   if(!S.buf||S.buf.m.length!==S.w*S.h)S.buf=newBuf(S.w*S.h);
-  applyResult(analyze(params(),{F:S.F,L:S.L,buf:S.buf}));
+  if(!S.Dmain||S.Dmain.F!==S.F)S.Dmain={F:S.F,L:S.L,buf:S.buf};
+  applyResult(analyze(params(),S.Dmain));
 }
 function applyResult(r){
+  $('total').classList.remove('pre');$('liveN').classList.remove('pre');
   S.mask=r.mask;S.core=r.core;S.lab=r.lab;S.darkT=r.darkT;
   for(const c of r.comps)if(c.n>1)c.px=r.pk.subarray(c.po,c.po+c.pn);
-  S.comps=r.comps;S.allComps=r.raw;S.median=r.med;S.medianA=r.medA;
+  S.comps=r.comps;S.allComps=r.raw;S.median=r.med;S.medianA=r.medA;S.lowRef=r.lowRef;
   // Farben automatisch: Hell/Dunkel, wenn zwei Gruppen klar erkannt sind, sonst aus – bis der Nutzer selbst wählt
   if(S.cmodeAuto){const m=r.darkT!==null?'auto':'off';
     if(m!==S.cmode){S.cmode=m;S.cls='all';[...$('cmode').children].forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===m));renderRows()}}
@@ -870,6 +1138,19 @@ function clsAt(x,y){
   let b=0;for(let k=1;k<f.K;k++)if(votes[k]>votes[b])b=k;return b;
 }
 // Zwei Helligkeitsgruppen finden (k-means mit k=2). Nur wenn sie klar getrennt sind, gibt es hell/dunkel.
+// Zwei Helligkeitsgruppen unter den Körnern? 2-Mittelwerte; nur „ja“, wenn die Gruppen deutlich auseinanderliegen
+// (Abstand der Gruppenmittel ≥ 30 Graustufen; Weizen, Bohne: 13–18, Hafer mit schwarzen Körnern: 71) und die kleinere Gruppe nicht verschwindend klein ist.
+function splitGrains(v){
+  if(v.length<8)return null;
+  let a=Infinity,b=-Infinity;for(const x of v){if(x<a)a=x;if(x>b)b=x}
+  for(let it=0;it<30;it++){let sa=0,na=0,sb=0,nb=0;const t=(a+b)/2;
+    for(const x of v){if(x<t){sa+=x;na++}else{sb+=x;nb++}}
+    if(!na||!nb)return null;a=sa/na;b=sb/nb}
+  const t=(a+b)/2;let va=0,na=0,vb=0,nb=0;
+  for(const x of v){if(x<t){va+=(x-a)**2;na++}else{vb+=(x-b)**2;nb++}}
+  const sd=Math.sqrt((va/na+vb/nb)/2)||1,dsep=(b-a)/sd,minor=Math.min(na,nb);
+  return {t,gap:b-a,dsep,minor,frac:minor/v.length,ok:(b-a)>=30&&minor>=3&&minor/v.length>=0.03};
+}
 function splitDark(v){
   if(v.length<6)return null;
   let a=Infinity,b=-Infinity;for(const x of v){if(x<a)a=x;if(x>b)b=x}
@@ -921,11 +1202,75 @@ function eff(c){return Math.max(0,c.n+delta(c))}
 const cssPx=()=>{const b=cv.getBoundingClientRect();return S.w/(b.width||S.w)}; // Bildpunkte je Bildschirmpunkt
 
 /* ---------- Darstellung ---------- */
+// Markierungen: Punkte fester Bildschirmgröße; zu eng liegende Punkte werden zu Sammelpunkten mit Zahl.
+// Mit eingeschalteten Nummern braucht jeder Punkt mehr Platz (für die Nummer daneben).
+const txtOn=c=>{const m=/^#?([0-9a-f]{6})$/i.exec(c||'');if(!m)return '#fff';const v=parseInt(m[1],16),l=0.299*(v>>16)+0.587*(v>>8&255)+0.114*(v&255);return l>150?'#10140f':'#fff'};
+function drawMarks(M,px){
+  const nums=S.nums&&S.minPx==null;
+  if(nums){ // Lesereihenfolge: Zeilen von oben nach unten, darin von links nach rechts
+    const d=2*Math.sqrt((S.medianA||S.median||100)/Math.PI)*1.1;
+    M.filter(m=>m.num).sort((a,b)=>Math.floor(a.y/d)-Math.floor(b.y/d)||a.x-b.x).forEach((m,i)=>m.no=i+1)}
+  const D=(nums?30:12)*px;
+  const merge=list=>{const grid=new Map(),out=[];
+    for(const m of list){const key=m.k+'|'+m.col+'|'+m.ok,gx=Math.floor(m.x/D),gy=Math.floor(m.y/D);let best=null,bd=D*D;
+      for(let ix=gx-1;ix<=gx+1;ix++)for(let iy=gy-1;iy<=gy+1;iy++){const cell=grid.get(ix+','+iy);if(!cell)continue;
+        for(const g of cell){if(g.key!==key)continue;const dd=(g.x-m.x)**2+(g.y-m.y)**2;if(dd<bd){bd=dd;best=g}}}
+      const w=m.n||1;
+      if(best){best.x=(best.x*best.n+m.x*w)/(best.n+w);best.y=(best.y*best.n+m.y*w)/(best.n+w);best.n+=w;best.ed=best.ed||m.ed;best.no=null}
+      else{const g={key,x:m.x,y:m.y,n:w,k:m.k,ok:m.ok,col:m.col,ed:m.ed,no:m.no};out.push(g);const ck=gx+','+gy;if(!grid.has(ck))grid.set(ck,[]);grid.get(ck).push(g)}}
+    return out};
+  const G=merge(merge(M));
+  if(S.minPx!=null){paintMarks(ctx,G,x=>x,y=>y,px,false);return} // Ergebnisbild: direkt ins Foto
+  S.G=G;S.Gnums=nums;drawScreen();
+}
+// Form je Klasse: Kreis, Quadrat, Dreieck
+function shapeOn(g,x,y,rr,k){g.beginPath();
+  if(k===1){const q=rr*.88;g.rect(x-q,y-q,2*q,2*q)}
+  else if(k===2){g.moveTo(x,y-rr*1.1);g.lineTo(x+rr*1.05,y+rr*.75);g.lineTo(x-rr*1.05,y+rr*.75);g.closePath()}
+  else g.arc(x,y,rr,0,7)}
+// Punkte, Sammelpunkte und Nummern zeichnen; u = Bildpunkte je Bildschirmpunkt der Zielfläche
+function paintMarks(g,G,tx,ty,u,nums,clip){
+  const R=4.2*u,lw=1.4*u,hand=tok('--grain'),bub=[];
+  g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';
+  for(const m of G){
+    const x=tx(m.x),y=ty(m.y);
+    if(clip&&(x<-30||y<-30||x>clip.w+30||y>clip.h+30))continue;
+    g.globalAlpha=m.ok?1:.35;
+    if(m.n>1){
+      const t=String(m.n),rb=Math.max(8.5*u,(t.length*3.4+5.5)*u);
+      g.fillStyle='rgba(0,0,0,.55)';g.beginPath();g.arc(x,y,rb+lw,0,7);g.fill();
+      g.fillStyle=m.col;g.beginPath();g.arc(x,y,rb,0,7);g.fill();
+      if(m.ed){g.strokeStyle=hand;g.lineWidth=lw*1.3;g.beginPath();g.arc(x,y,rb+lw*2.2,0,7);g.stroke()}
+      g.fillStyle=txtOn(m.col);g.font=`700 ${10.5*u}px JetBrains Mono, monospace`;g.fillText(t,x,y+0.6*u);
+      bub.push({x:m.x,y:m.y,rs:rb+lw*2,n:m.n});
+    } else {
+      g.fillStyle='rgba(0,0,0,.6)';shapeOn(g,x,y,R+lw,m.k);g.fill();
+      g.fillStyle=m.col;shapeOn(g,x,y,R,m.k);g.fill();
+      if(m.ed){g.strokeStyle=hand;g.lineWidth=lw;shapeOn(g,x,y,R+lw*2.2,m.k);g.stroke()}
+      if(nums&&m.no){const t=String(m.no);g.font=`700 ${11*u}px JetBrains Mono, monospace`;g.textAlign='left';
+        g.lineWidth=3*u;g.strokeStyle='rgba(0,0,0,.8)';g.strokeText(t,x+R+2*u,y-R);
+        g.fillStyle='#fff';g.fillText(t,x+R+2*u,y-R);g.textAlign='center'}
+    }
+    g.globalAlpha=1;
+  }
+  return bub;
+}
+// Eigene Ebene in Bildschirmauflösung: bleibt beim Hineinzoomen scharf, wird beim Verschieben sofort nachgezogen
+function drawScreen(){
+  const mk=$('mk'),dpr=window.devicePixelRatio||1,W=stage.clientWidth,H=stage.clientHeight;
+  if(mk.width!==Math.round(W*dpr)||mk.height!==Math.round(H*dpr)){mk.width=Math.round(W*dpr);mk.height=Math.round(H*dpr);mk.style.width=W+'px';mk.style.height=H+'px'}
+  const g=mk.getContext('2d');g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,mk.width,mk.height);
+  if(!S.G||!S.src||S.view==='check'){S.bubbles=[];return}
+  g.setTransform(dpr,0,0,dpr,0,0);
+  const k=Z.base*Z.s,bub=paintMarks(g,S.G,x=>Z.x+x*k,y=>Z.y+y*k,1,S.Gnums,{w:W,h:H});
+  S.bubbles=bub.map(b=>({x:b.x,y:b.y,r:b.rs/k,n:b.n}));
+}
+
 const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function render(){
   if(!S.src)return;
   const {w,h}=S;ctx.clearRect(0,0,w,h);
-  const view=S.view;
+  const view=S.view;S.G=null;
   if(view==='mask'&&S.mask){
     const im=ctx.createImageData(w,h);const m=S.mask,d=im.data;
     for(let i=0,j=0;i<m.length;i++,j+=4){const v=m[i]?235:28;d[j]=d[j+1]=d[j+2]=v;d[j+3]=255}
@@ -938,7 +1283,7 @@ function render(){
   const px=S.minPx??cssPx(),r=Math.max(markerR(),4.5*px),lw=Math.max(1.5*px,r*0.22);
   const C={mark:tok('--mark'),clump:tok('--clump'),small:tok('--small'),hand:tok('--grain'),off:tok('--off')};
   const f=S.clf,cls=f&&S.cls!=='all'&&+S.cls<f.K?+S.cls:-1;
-  let single=0,clump=0,small=0,plus=0,minus=0;const per=new Array(f?f.K:1).fill(0);
+  let single=0,clump=0,small=0,plus=0,minus=0;const M=[];const per=new Array(f?f.K:1).fill(0);
   // Form je Klasse: Kreis, Quadrat, Dreieck
   const shape=(x,y,rr,k)=>{ctx.beginPath();
     if(k===1){const q=rr*.88;ctx.rect(x-q,y-q,2*q,2*q)}
@@ -969,62 +1314,39 @@ function render(){
       } else for(const p of pts){ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.arc(p.x,p.y,r*.35,0,7);ctx.fill()}
       continue;
     }
-    ctx.setLineDash([]);
-    if(e===0){
-      ctx.lineWidth=lw;ctx.strokeStyle=C.off;ctx.beginPath();ctx.arc(c.cx,c.cy,r,0,7);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(c.cx-r*.7,c.cy-r*.7);ctx.lineTo(c.cx+r*.7,c.cy+r*.7);ctx.stroke();
+    if(e===0){ // entferntes Korn: kleines Kreuz
+      const q=4*px;ctx.lineWidth=1.8*px;ctx.strokeStyle='rgba(0,0,0,.55)';
+      ctx.beginPath();ctx.moveTo(c.cx-q,c.cy-q);ctx.lineTo(c.cx+q,c.cy+q);ctx.moveTo(c.cx+q,c.cy-q);ctx.lineTo(c.cx-q,c.cy+q);ctx.stroke();
+      ctx.lineWidth=1.1*px;ctx.strokeStyle=C.off;ctx.stroke();
       continue;
     }
-    if(simple){
-      // Sammelpunkte: nahe beieinander liegende Körner eines Haufens zusammenfassen
-      const groups=[];const d2=(r*1.6)**2;
-      for(const p of pts){const g=groups.find(g=>(g.x-p.x)**2+(g.y-p.y)**2<d2);
-        if(g){g.x=(g.x*g.n+p.x)/(g.n+1);g.y=(g.y*g.n+p.y)/(g.n+1);g.n++}else groups.push({x:p.x,y:p.y,n:1})}
-      for(const g of groups){
-        ctx.lineWidth=lw;ctx.strokeStyle='rgba(0,0,0,.6)';
-        if(g.n>1){const rg=r*1.05;ctx.beginPath();ctx.arc(g.x,g.y,rg+lw*.6,0,7);ctx.stroke();
-          ctx.fillStyle=C.mark;ctx.beginPath();ctx.arc(g.x,g.y,rg,0,7);ctx.fill();
-          ctx.fillStyle='#fff';ctx.font=`700 ${Math.max(11,r*1.15)}px JetBrains Mono, monospace`;ctx.fillText(g.n,g.x,g.y+1)}
-        else{ctx.beginPath();ctx.arc(g.x,g.y,r+lw*.6,0,7);ctx.stroke();ctx.strokeStyle=C.mark;ctx.beginPath();ctx.arc(g.x,g.y,r,0,7);ctx.stroke()}
-        if(dd!==0){ctx.strokeStyle=C.hand;ctx.lineWidth=lw*.8;ctx.beginPath();ctx.arc(g.x,g.y,(g.n>1?r*1.05:r)+lw*1.6,0,7);ctx.stroke()}
-      }
-      continue;
-    }
-    const rr=e>1?r*.72:r;
-    for(const p of pts){
-      ctx.globalAlpha=p.ok?1:.35;
-      ctx.lineWidth=lw;ctx.strokeStyle='rgba(0,0,0,.6)';shape(p.x,p.y,rr+lw*.6,p.k);ctx.stroke();
-      if(showSmall){ctx.strokeStyle=C.small;ctx.setLineDash([r*.5,r*.35]);shape(p.x,p.y,rr,p.k);ctx.stroke();ctx.setLineDash([])}
-      else if(e>1){ctx.fillStyle=C.clump;shape(p.x,p.y,rr,p.k);ctx.fill()}
-      else{ctx.strokeStyle=C.mark;shape(p.x,p.y,rr,p.k);ctx.stroke()}
-      if(dd!==0){ctx.strokeStyle=C.hand;ctx.lineWidth=lw*.8;shape(p.x,p.y,rr+lw*1.6,p.k);ctx.stroke()}
-      ctx.globalAlpha=1;
-    }
+    const col=showSmall?C.small:C.mark; // Farbe nur für Kleinkorn; ob geschätzt, steht in der Ergebniszeile
+    for(const p of pts)M.push({x:p.x,y:p.y,k:simple?0:p.k,ok:p.ok,col,ed:dd!==0,num:p.ok&&e>0&&!(showSmall&&S.basis==='full')});
   }
   for(const p of S.added){
     const k=f?clsAt(p.x,p.y):0;per[k]++;
     const ok=want(k);
     if(ok)single++;
     if(view==='check')continue;
-    ctx.globalAlpha=ok?1:.35;
-    const kk=simple?0:k;
-    ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=lw*1.6;shape(p.x,p.y,r,kk);ctx.stroke();
-    ctx.strokeStyle=C.hand;ctx.lineWidth=lw;shape(p.x,p.y,r,kk);ctx.stroke();
-    ctx.fillStyle=C.hand;ctx.beginPath();ctx.arc(p.x,p.y,r*.3,0,7);ctx.fill();
-    ctx.globalAlpha=1;
+    M.push({x:p.x,y:p.y,k:simple?0:k,ok,col:C.hand,ed:false,num:ok});
   }
+  if(view!=='check')drawMarks(M,px);else drawScreen();
   plus+=S.added.length;
   drawRoi();
   const full=single+clump, all=full+small;
   const tot=per.reduce((a,b)=>a+b,0);
   S.counts={single,clump,small,full,all,plus,minus,classes:f?f.names.map((nm,k)=>({name:nm,count:per[k]})):null};
   const parts=[];
-  if(f&&cls<0&&!simple)parts.push(f.names.map((nm,k)=>`<b>${fmt(per[k])}</b> ${escH(nm)}${k===f.K-1&&tot?'':''}`).join(' · ')+(f.K===2&&tot?` (${(per[1]/tot*100).toLocaleString('de-DE',{maximumFractionDigits:1})} % ${escH(f.names[1])})`:''));
+  if(f&&cls<0&&!simple)parts.push(f.names.map((nm,k)=>`<span class="lg">${legSvg(k)}<b>${fmt(per[k])}</b> ${escH(nm)}</span>`).join(' · ')+(f.K===2&&tot?` (${(per[1]/tot*100).toLocaleString('de-DE',{maximumFractionDigits:1})} % ${escH(f.names[1])})`:''));
   if(f&&cls>=0)parts.push(`nur <b>${escH(f.names[cls])}</b>`);
   if(clump)parts.push(`<b>${fmt(simple?single+small:single)}</b> einzeln · <b>${fmt(clump)}</b> in Gruppen geschätzt`);
-  if(small&&S.tab!=='count'&&S.tab!=='start')parts.push(`<b>${fmt(small)}</b> Kleinkorn${S.basis==='full'?' raus':''}`);
+  if(small&&S.tab!=='count'&&S.tab!=='start')parts.push(`<span class="lg"><i class="dot pt" style="background:var(--small)"></i><b>${fmt(small)}</b> Kleinkorn${S.basis==='full'?' raus':''}</span>`);
   if(plus||minus)parts.push(`<b>+${plus}/−${minus}</b> von Hand`);
   $('breakdown').innerHTML=parts.join(' · ')||'Alle Körner einzeln erkannt';
+  const wl=$('warnLine');wl.classList.remove('okline');
+  if(S.ctrl&&S.ctrl.done){wl.hidden=false;wl.textContent=S.ctrl.msg;wl.classList.toggle('okline',S.ctrl.ok)}
+  else if(S.lowRef&&all>=10){wl.hidden=false;wl.textContent='Ergebnis unsicher: kaum einzeln liegende Körner. Ein paar Körner einzeln hinlegen und neu fotografieren.'}
+  else wl.hidden=true;
   $('resetEdits').hidden=!(S.adj.length||S.added.length);
   $('roiReset').hidden=!(S.roi&&S.tool==='roi'&&S.editing);
   $('undoBtn').disabled=!S.hist.length;
@@ -1061,12 +1383,13 @@ function liveCount(){cancelAnimationFrame(lc);lc=requestAnimationFrame(()=>{
   for(const c of S.allComps||[]){if(c.ao<med*DUST||!inPoly(c.cx,c.cy,R))continue;n+=c.ao>1.5*med?Math.max(2,Math.round(c.ao/med)):1}
   $('liveN').textContent='≈ '+fmt(n);
 })}
-function currentN(){const c=S.counts;return c?(S.basis==='all'?c.all:c.full):0}
+function currentN(){const c=S.counts;if(!c)return 0;if(S.ctrl&&S.ctrl.done)return c.all;return S.basis==='all'?c.all:c.full}
 function currentTKG(){if(!S.basisOk)return null;const wt=parseFloat(String($('weight').value).replace(',','.'));const n=currentN();return (wt>0&&n>0)?{wt,tkg:wt/n*1000}:null}
 function updResult(){
   if(!S.counts)return;
   const n=fmt(currentN());
   $('total').textContent=n;$('liveN').textContent=n;
+  updSaveBtn();
   const f=S.clf,k=f&&S.cls!=='all'&&+S.cls<f.K?f.names[+S.cls]+' · ':'';
   const lbl=k+(S.basis==='all'?'Körner':'ohne Kleinkorn');
   $('totalLabel').textContent=lbl;$('liveL').textContent=lbl;
@@ -1089,6 +1412,7 @@ function fitTo(b,pad){
   Z.x=r.width/2-cx;Z.y=(S.editing?availH/2+50:r.height/2)-cy;apply();
 }
 function setEditing(on){
+  if(on&&!S.editing)layerOpen('edit',()=>{endPick();setEditing(false)});else if(!on&&S.editing)layerDrop('edit');
   S.editing=on;stage.classList.toggle('full',on);
   const lockRoi=S.tab!=='count'&&S.tab!=='start';stage.classList.toggle('noroi',lockRoi);if(lockRoi&&S.tool==='roi')setTool(null);
   if(on&&S.pickFor===null)setTool(null);
@@ -1098,6 +1422,10 @@ function setEditing(on){
   if(on)$('doneBtn').focus();
 }
 $('editBtn').onclick=()=>setEditing(true);
+$('numBtn').onclick=()=>{S.nums=!S.nums;$('numBtn').setAttribute('aria-pressed',S.nums);render()};
+// Tipp auf einen Sammelpunkt: dorthin hineinzoomen
+function bubbleAt(cx,cy){const b=cv.getBoundingClientRect(),x=(cx-b.left)*S.w/b.width,y=(cy-b.top)*S.h/b.height,tol=6*S.w/b.width;
+  return (S.bubbles||[]).find(g=>(g.x-x)**2+(g.y-y)**2<(g.r+tol)**2)}
 $('doneBtn').onclick=()=>{endPick();setEditing(false)};
 // Alles, was gezählt wird: Zählbereich oder sämtliche erkannten und ergänzten Körner
 function countedBox(){
@@ -1121,7 +1449,7 @@ function coreBox(){
     b={x0:Math.max(0,b.x0-m),y0:Math.max(0,b.y0-m),x1:Math.min(S.w,b.x1+m),y1:Math.min(S.h,b.y1+m)}}
   return b;
 }
-const toolHints={add:'Tippe auf ein Korn ohne Markierung. In einer Gruppe zählt jeder Tipp ein Korn dazu.',remove:'Tippe auf eine Markierung. In einer Gruppe zählt jeder Tipp ein Korn weniger.',roi:'Ecken ziehen verschiebt sie. „+“ auf einer Kante ziehen macht eine neue Ecke. Ecke antippen löscht sie.'};
+const toolHints={add:'Tippe auf ein Korn ohne Punkt. In einer Gruppe zählt jeder Tipp ein Korn dazu. Punkt mit Zahl antippen zoomt hinein.',remove:'Tippe auf einen Punkt. In einer Gruppe zählt jeder Tipp ein Korn weniger. Punkt mit Zahl antippen zoomt hinein.',roi:'Ecken ziehen verschiebt sie. „+“ auf einer Kante ziehen macht eine neue Ecke. Ecke antippen löscht sie.'};
 function setTool(v){S.tool=v;[...$('tool').children].forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===v));hint(v?toolHints[v]:'Kein Werkzeug aktiv: zoomen und verschieben.');$('roiReset').hidden=!(S.roi&&v==='roi');
   if(v==='roi'&&!S.roi&&S.src){
     const b=coreBox();
@@ -1167,6 +1495,7 @@ function editAt(x,y,hitR){
 }
 function tap(clientX,clientY){
   if(!S.src)return;
+  if(S.tool!=='roi'&&S.pickFor==null&&bubbleAt(clientX,clientY)){const r=stage.getBoundingClientRect();zoomAt(clientX-r.left,clientY-r.top,Z.s*2.5);return}
   if(!S.editing)return;
   if(!S.tool&&S.pickFor===null){hint('Werkzeug unten wählen: Korn setzen, Korn löschen oder Bereich.',true);return}
   const b=cv.getBoundingClientRect();
@@ -1206,6 +1535,7 @@ let zr=0;
 function apply(){
   clampZ();
   cv.style.transform=ovc.style.transform=`translate(${Z.x}px,${Z.y}px) scale(${Z.s})`;
+  if(S.G)drawScreen();
   const zoomed=Z.s>1.02;
 
   if(S.roi&&S.editing&&S.tool==='roi')drawRoi(); // Griffe bleiben gleich groß
@@ -1221,10 +1551,17 @@ const P=new Map();let G=null;
 const mid=()=>{const v=[...P.values()];return {x:(v[0].x+v[1].x)/2,y:(v[0].y+v[1].y)/2,d:Math.hypot(v[0].x-v[1].x,v[0].y-v[1].y)||1}};
 stage.addEventListener('pointerdown',e=>{
   if(e.target.closest('button,.drop,.editbar,.vs,.vicon'))return;
-  document.querySelectorAll('.vs.open .vtitle').forEach(b=>b.click());
-  stage.setPointerCapture(e.pointerId);
+  try{stage.setPointerCapture(e.pointerId)}catch(_){}
   P.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(P.size===1)G={sx:e.clientX,sy:e.clientY,px:Z.x,py:Z.y,moved:false,multi:false,handle:hitHandle(e.clientX,e.clientY),prev:S.roi&&S.roi.map(p=>({...p}))};
+  if(P.size===1){G={sx:e.clientX,sy:e.clientY,px:Z.x,py:Z.y,moved:false,multi:false,handle:hitHandle(e.clientX,e.clientY),prev:S.roi&&S.roi.map(p=>({...p}))};
+    // zweiter Tipp kurz nach dem ersten: Doppeltipp. Liegen lassen und ziehen = zoomen mit einem Finger (wie in Kartendiensten),
+    // loslassen ohne Ziehen = ganzes Bild. Hat der erste Tipp ein Korn gesetzt/gelöscht, wird das zurückgenommen.
+    const lt=S.lastTap;
+    if(lt&&performance.now()-lt.t<320&&Math.hypot(e.clientX-lt.x,e.clientY-lt.y)<30){
+      clearTimeout(S.tapT); // aufgeschobene Einzeltipp-Aktion fällt weg
+      if(lt.edited&&S.hist.length&&S.hist[S.hist.length-1]===lt.edited)$('undoBtn').click();
+      const r=stage.getBoundingClientRect();S.lastTap=null;G.handle=null;
+      G.dz={sy:e.clientY,s0:Z.s,x0:Z.x,y0:Z.y,ax:e.clientX-r.left,ay:e.clientY-r.top}}}
   else if(P.size===2&&G){G.multi=true;if(G.handle&&G.moved){S.hist.push({t:'roi',prev:G.prev});run()}G.handle=null;G.pinch={m:mid(),s:Z.s,x:Z.x,y:Z.y}}
 });
 stage.addEventListener('pointermove',e=>{
@@ -1235,6 +1572,12 @@ stage.addEventListener('pointermove',e=>{
     const m=mid(),p=G.pinch;const ns=Math.min(8,Math.max(1,p.s*m.d/p.m.d));
     const cx=(p.m.x-r.left-p.x)/p.s,cy=(p.m.y-r.top-p.y)/p.s;
     S.fit=null;Z.s=ns;Z.x=m.x-r.left-cx*ns;Z.y=m.y-r.top-cy*ns;apply();reRenderSoon();
+  } else if(P.size===1&&G.dz){
+    const d=G.dz,dy=e.clientY-d.sy;if(!G.moved&&Math.abs(dy)>6)G.moved=true;
+    // nach unten ziehen = größer; ~100 px Weg = doppelte Größe. Der getippte Punkt bleibt unter dem Finger-Startpunkt.
+    // Während des Ziehens nur verschieben/skalieren, neu gezeichnet wird erst beim Loslassen (sonst ruckelt es).
+    if(G.moved){const ns=Math.min(8,Math.max(1,d.s0*Math.exp((dy-(dy>0?6:-6))*0.007)));
+      S.fit=null;Z.s=ns;Z.x=d.ax-(d.ax-d.x0)*ns/d.s0;Z.y=d.ay-(d.ay-d.y0)*ns/d.s0;apply()}
   } else if(P.size===1){
     const dx=e.clientX-G.sx,dy=e.clientY-G.sy;
     if(!G.moved&&Math.hypot(dx,dy)>6)G.moved=true;
@@ -1250,6 +1593,7 @@ const endPtr=e=>{
   if(!P.has(e.pointerId))return;
   P.delete(e.pointerId);
   if(P.size===1&&G){const v=[...P.values()][0];G.sx=v.x;G.sy=v.y;G.px=Z.x;G.py=Z.y;G.pinch=null;G.moved=true}
+  if(P.size===0&&G&&G.dz){if(!G.moved&&!G.multi&&e.type==='pointerup')zoomReset();else reRenderSoon();G=null;return}
   if(P.size===0&&G){
     if(G.handle){
       if(G.moved){S.hist.push({t:'roi',prev:G.prev});run()}
@@ -1264,8 +1608,16 @@ const endPtr=e=>{
       if(lt&&now-lt.t<320&&Math.hypot(e.clientX-lt.x,e.clientY-lt.y)<30){
         if(lt.edited&&S.hist.length&&S.hist[S.hist.length-1]===lt.edited)$('undoBtn').click(); // erster Tipp war kein Bearbeiten
         S.lastTap=null;zoomReset();
-      } else {const h0=S.hist[S.hist.length-1];tap(e.clientX,e.clientY);const h1=S.hist[S.hist.length-1];
-        S.lastTap={t:now,x:e.clientX,y:e.clientY,edited:h1!==h0?h1:null}}
+      } else {
+        const cx=e.clientX,cy=e.clientY;
+        if(!S.editing){
+          // Ansicht: Einzeltipp (Regler schließen, Sammelpunkt-Zoom) kurz aufschieben – kommt ein zweiter Tipp, ist es ein Doppeltipp
+          clearTimeout(S.tapT);
+          S.tapT=setTimeout(()=>{const open=document.querySelectorAll('.vs.open .vtitle');if(open.length){open.forEach(b=>b.click());return}tap(cx,cy)},260);
+          S.lastTap={t:now,x:cx,y:cy,edited:null};
+        } else {
+          const h0=S.hist[S.hist.length-1];tap(cx,cy);const h1=S.hist[S.hist.length-1];
+          S.lastTap={t:now,x:cx,y:cy,edited:h1!==h0?h1:null}}}
     }
     G=null}
 };
@@ -1281,24 +1633,27 @@ document.querySelectorAll('.vtitle').forEach(b=>b.addEventListener('click',()=>{
   const vs=b.closest('.vs');vs.classList.remove('open');document.querySelector(`.vicon[data-open="${vs.dataset.for}"]`).classList.remove('hide')}));
 function selectTab(t){
   if(S.tab==='small'&&t!=='small'&&S.view==='check')setView('photo');
-  S.tab=t;stage.classList.toggle('tune',t==='count');$('dock').dataset.tab=t;
+  S.tab=t;stage.classList.toggle('tune',t==='count');$('dock').dataset.tab=t;document.querySelector('.app').dataset.tab=t;
   [...$('tabs').children].forEach(x=>x.setAttribute('aria-selected',x.dataset.tab===t));
   document.querySelectorAll('.pane').forEach(p=>p.hidden=p.dataset.pane!==t);
-  $('dock').classList.remove('collapsed');
+  $('dock').classList.remove('collapsed');document.querySelector('.app').classList.remove('dcol');
   if(S.src)render();
 }
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   const dock=$('dock');
-  if(b.getAttribute('aria-selected')==='true'&&!dock.classList.contains('collapsed')){dock.classList.add('collapsed');b.setAttribute('aria-expanded','false');return}
+  if(b.getAttribute('aria-selected')==='true'&&!dock.classList.contains('collapsed')){dock.classList.add('collapsed');document.querySelector('.app').classList.add('dcol');b.setAttribute('aria-expanded','false');return}
   selectTab(b.dataset.tab);b.setAttribute('aria-expanded','true')});
 
 /* ---------- Regler ---------- */
-const fmtOut={sens:v=>v,sep:v=>v,small:v=>v==0?'aus':v+' %'};
+const stepTxt=v=>+v===0?'0':(+v>0?'+':'−')+Math.abs(v);
+const fmtOut={sens:stepTxt,sep:stepTxt,small:v=>v==0?'aus':v+' %'};
 function sync(id){$(id+'O').textContent=fmtOut[id]($(id).value);
   const vs=document.querySelector(`.vs[data-for="${id}"]`);
   if(vs){const el=$(id),f=(el.value-el.min)/(el.max-el.min);
-    vs.querySelector('.vval').textContent=el.value;vs.querySelector('.vfill').style.height=f*100+'%';
-    vs.querySelector('.vthumb').style.top=(1-f)*100+'%';vs.setAttribute('aria-valuenow',el.value)}}
+    vs.querySelector('.vval').textContent=fmtOut[id](el.value);vs.setAttribute('aria-valuemin',el.min);vs.setAttribute('aria-valuemax',el.max);vs.querySelector('.vfill').style.height=f*100+'%';
+    vs.querySelector('.vthumb').style.top=(1-f)*100+'%';vs.setAttribute('aria-valuenow',el.value)}
+  if(id==='sens'||id==='sep'){const mk=$(id+'Mark'),el=$(id);mk.hidden=false;mk.style.top=(1-(0-el.min)/(el.max-el.min))*100+'%';
+    $(id+'Auto').classList.toggle('is-auto',+el.value===0)}}
 document.querySelectorAll('.vs').forEach(vs=>{
   const el=$(vs.dataset.for),step=+vs.dataset.step,track=vs.querySelector('.vtrack');
   const set=v=>{v=Math.min(+el.max,Math.max(+el.min,Math.round(v/step)*step));if(v!==+el.value){el.value=v;sync(el.id);schedule()}};
@@ -1333,6 +1688,8 @@ function segment(id,key,after){
 $('cls').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.cls=b.dataset.v;render()});
 segment('cmode','cmode',()=>{S.cmodeAuto=false;S.cls='all';renderRows();S.clf=classifier();S.clfVer=(S.clfVer||0)+1;render()});
 const SHAPES=['<circle cx="8" cy="8" r="5.5"/>','<rect x="2.8" y="2.8" width="10.4" height="10.4"/>','<path d="M8 2 L14 13 L2 13 Z"/>'];
+// Legende im Ergebnis: gefüllte Form in Kornpunkt-Farbe, wie im Bild
+const legSvg=k=>`<svg class="lgs" viewBox="0 0 16 16" aria-hidden="true"><g fill="var(--mark)" stroke="rgba(0,0,0,.55)" stroke-width="1.5">${k===1?'<rect x="3.5" y="3.5" width="9" height="9"/>':k===2?'<path d="M8 2.5l6 10.5H2z"/>':'<circle cx="8" cy="8" r="5"/>'}</g></svg>`;
 const shapeSvg=k=>`<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">${SHAPES[k]}</svg>`;
 function renderRows(){
   $('customBox').hidden=S.cmode!=='custom';
@@ -1349,7 +1706,7 @@ function renderClassUI(per){
   const f=S.clf;
   $('clsBox').hidden=!f;
   const hintEl=$('cmodeHint');
-  if(S.cmode==='auto')hintEl.textContent=f?'Helle und dunkle Körner automatisch erkannt. Dunkle Körner sind eckig markiert.':'Keine deutlich hellen und dunklen Körner gefunden. Alle zählen als eine Sorte.';
+  if(S.cmode==='auto')hintEl.textContent=f?'Helle und dunkle Körner automatisch erkannt: helle rund, dunkle eckig markiert.':'Keine deutlich hellen und dunklen Körner gefunden. Alle zählen als eine Sorte.';
   else if(S.cmode==='custom')hintEl.textContent=f?'Jedes Korn zählt zur ähnlichsten Farbe. Form der Markierung = Farbe.':'Wähle für mindestens zwei Farben je ein typisches Korn im Bild.';
   else hintEl.textContent=S.cmodeAuto?'Keine deutlich hellen und dunklen Körner erkannt. Bei Bedarf „Hell/Dunkel“ oder „Eigene“ wählen.':'Alle Körner zählen als eine Sorte.';
   if(f){const key=f.names.join('|');
@@ -1384,16 +1741,51 @@ function pickAt(x,y){
 renderRows();
 document.querySelectorAll('.basisSeg').forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   if(b.dataset.v==='full'&&S.basis!=='full'&&S.counts&&S.counts.small>0){
-    $('smallAskN').textContent=fmt(S.counts.small);$('smallAsk').hidden=false;return}
-  S.basis=b.dataset.v;render()}));
-$('smallYes').onclick=()=>{$('smallAsk').hidden=true;S.basis='full';render()};
-$('smallNo').onclick=()=>{$('smallAsk').hidden=true;S.basis='all';render()};
-$('smallShow').onclick=()=>{$('smallAsk').hidden=true;selectTab('small');setView('check')};
+    $('smallAskN').textContent=fmt(S.counts.small);showDlg('smallAsk');return}
+  S.basis=b.dataset.v;if(S.basis==='all')S.ctrl=null;render();ctrlUI()}));
+$('smallYes').onclick=()=>{hideDlg('smallAsk');S.basis='full';S.ctrl=null;render();ctrlUI()};
+$('smallCtrl').onclick=()=>{hideDlg('smallAsk');startCtrl();openCtrlPicker('cam')};
+// Kontrollfoto: zweites Foto derselben Probe nach dem Aussortieren
+function startCtrl(){
+  const c=S.counts;if(!c)return;
+  S.basis='full';S.ctrl={before:c.all,small:c.small,expected:c.full,smallRef:S.median,pending:true,done:false};
+  render();ctrlUI();
+}
+function openCtrlPicker(kind){S.ctrl.pending=true;S.loadingCtrl=true;$(kind==='file'?'file':'cam').click()}
+$('ctrlBox').addEventListener('click',e=>{const b=e.target.closest('[data-ctrl]');if(!b||!S.ctrl)return;openCtrlPicker(b.dataset.ctrl)});
+function ctrlUI(){
+  const box=$('ctrlBox'),t=$('ctrlText');
+  if(!S.ctrl||S.basis!=='full'){box.hidden=true;return}
+  box.hidden=false;box.classList.toggle('ok',!!(S.ctrl.done&&S.ctrl.ok));
+  if(!S.ctrl.done)t.innerHTML=`Vorher <b>${fmt(S.ctrl.before)}</b> Körner, davon <b>${fmt(S.ctrl.small)}</b> Kleinkorn. Nach dem Aussortieren werden <b>${fmt(S.ctrl.expected)}</b> erwartet. Jetzt die Probe noch einmal fotografieren.`;
+  else t.textContent=S.ctrl.msg+' Neues Kontrollfoto ist jederzeit möglich.';
+}
+function checkCtrl(){
+  const C=S.ctrl,c=S.counts;if(!C||!c)return;
+  const n=c.all,diff=n-C.expected,tol=Math.max(3,Math.round(C.expected*0.03));
+  const left=c.small;
+  C.done=true;C.n=n;C.left=left;
+  if(left>Math.max(1,Math.round(n*0.01))){C.ok=false;C.msg=`Kontrollfoto: noch ${fmt(left)} Kleinkörner im Bild. Bitte aussortieren und neu fotografieren.`}
+  else if(Math.abs(diff)>tol){C.ok=false;C.msg=`Kontrollfoto: ${fmt(n)} Körner gezählt, erwartet ${fmt(C.expected)} (${diff>0?'+':''}${fmt(diff)}). Bitte prüfen.`}
+  else {C.ok=true;C.msg=`Kontrollfoto passt: ${fmt(n)} Körner, Kleinkorn aussortiert.`}
+  render();ctrlUI();
+  toast((C.ok?'<b>Geprüft.</b> ':'<b>Achtung.</b> ')+escH(C.msg),6000);
+}
+$('smallNo').onclick=()=>{hideDlg('smallAsk');S.basis='all';S.ctrl=null;render();ctrlUI()};
+$('smallShow').onclick=()=>{hideDlg('smallAsk');selectTab('small');setView('check')};
 $('weight').addEventListener('input',()=>{updResult();$('saveMsg').textContent=''});
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>S.src&&render());
 
 /* ---------- Ergebnis als Bild ---------- */
 const HOME_URL='https://mjk912.github.io/tally/'; // erscheint unten auf dem Bild
+// Fuß beider Bilder, mittig: Erstellt mit tally / Adresse / Pflanzen (Wunsch des Inhabers, 0.1.17)
+function drawFoot(g,W,y,gold){
+  g.textAlign='center';g.textBaseline='middle';
+  g.fillStyle=gold;g.font='700 30px "Atkinson Hyperlegible", system-ui, sans-serif';g.fillText('Erstellt mit tally',W/2,y+44);
+  g.fillStyle='#b9c0bb';g.font='400 26px "Atkinson Hyperlegible", system-ui, sans-serif';g.fillText(HOME_URL.replace(/^https?:\/\//,'').replace(/\/$/,''),W/2,y+86);
+  g.font='34px system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';g.fillText('🌱☘️🌽🌾🌻',W/2,y+136);
+  g.textAlign='left';
+}
 async function makeReport(){
   try{await document.fonts.ready}catch(e){}
   // Markierungen im Foto-Modus zeichnen
@@ -1411,12 +1803,13 @@ async function makeReport(){
   if(charge)rows.push(['Charge',charge]);
   const probe=$('probe').value.trim();if(probe)rows.push(['Probe',probe]);
   rows.push(['Datum',new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})]);
-  rows.push(['Gezählte Körner',fmt(currentN())+(S.basis==='full'?' (ohne Kleinkorn)':' (mit Kleinkorn)')]);
+  rows.push(['Gezählte Körner',fmt(currentN())+(S.basis==='full'?(S.ctrl&&S.ctrl.done?(S.ctrl.ok?' (ohne Kleinkorn, geprüft)':' (ohne Kleinkorn, Abweichung)'):' (ohne Kleinkorn, nicht geprüft)'):' (mit Kleinkorn)')]);
+  if(S.lowRef)rows.push(['Hinweis','kaum Einzelkörner – Zahl unsicher']);
   const wt=parseFloat(String($('weight').value).replace(',','.'));if(wt>0)rows.push(['Gewicht der Probe',wt.toLocaleString('de-DE')+' g'+(S.basisOk?(S.basis==='full'?' (ohne Kleinkorn)':' (mit Kleinkorn)'):'')]);
   if(c.all)rows.push(['Kleinkorn',`${fmt(c.small)} Stück · ${(c.small/c.all*100).toLocaleString('de-DE',{maximumFractionDigits:1})} %`]);
   if(f&&c.classes){const tot=c.classes.reduce((a,b)=>a+b.count,0)||1;rows.push(['Farben',c.classes.map(k=>`${fmt(k.count)} ${k.name} (${Math.round(k.count/tot*100)} %)`).join(' · ')])}
   if(c.plus||c.minus)rows.push(['Von Hand korrigiert',`+${c.plus} / −${c.minus}`]);
-  const H=150+ih+P+220+rows.length*62+P+110;
+  const H=150+ih+P+220+rows.length*62+P+170;
   const out=document.createElement('canvas');out.width=W;out.height=Math.round(H);const g=out.getContext('2d');
   g.fillStyle=BG;g.fillRect(0,0,W,H);
   // Kopf
@@ -1444,25 +1837,25 @@ async function makeReport(){
   }
   // Fuß
   y+=P-20;g.fillStyle=dark;g.fillRect(0,y,W,H-y);
-  g.fillStyle=gold;g.font='700 30px "Atkinson Hyperlegible", system-ui, sans-serif';g.fillText('Gezählt mit tally',P,y+42);
-  g.fillStyle='#b9c0bb';g.font='400 24px "Atkinson Hyperlegible", system-ui, sans-serif';
-  g.fillText('made with 💚 by mjk912 · '+HOME_URL.replace(/^https?:\/\//,'').replace(/\/$/,''),P,y+82);
+  drawFoot(g,W,y,gold);
   S.view=keepView;S.tab=keepTab;render();
   return out;
 }
-let shareBlob=null,shareName='';
+let shareBlob=null,shareName='',shareText='';
 function fileName(parts){return ('tally-'+(parts.filter(Boolean).join('-')||'Probe')+'-'+new Date().toISOString().slice(0,10)).replace(/[^\wäöüÄÖÜß.-]+/g,'_')+'.jpg'}
-function openShare(blob,name){
-  shareBlob=blob;shareName=name;
+function openShare(blob,name,text){
+  shareBlob=blob;shareName=name;shareText=text||'TKG-Ergebnis, erstellt mit tally: '+HOME_URL;
   const img=$('shareImg');if(img.src.startsWith('blob:'))URL.revokeObjectURL(img.src);img.src=URL.createObjectURL(blob);
   const file=new File([blob],name,{type:'image/jpeg'});
   $('shareNow').hidden=!(navigator.canShare&&navigator.canShare({files:[file]}));
   $('saveImg').hidden=!$('shareNow').hidden;$('shareMsg').textContent='';$('shareMsg').className='msg';
-  $('shareView').hidden=false;
+  $('shareNote').textContent=$('shareNow').hidden?'Teilen bietet dieser Browser hier nicht an – Bild speichern und dann weitergeben, oder lange auf das Bild drücken.':'Beim Teilen bietet das Handy auch „In Galerie speichern“ an.';
+  $('shareView').hidden=false;layerOpen('share',closeShare);
 }
+function closeShare(){$('shareView').hidden=true;layerDrop('share')}
 $('shareNow').onclick=async()=>{
   const file=new File([shareBlob],shareName,{type:'image/jpeg'});
-  try{await navigator.share({files:[file],title:'tally',text:'TKG-Ergebnis, gezählt mit tally: '+HOME_URL})}
+  try{await navigator.share({files:[file],title:'tally',text:shareText})}
   catch(e){if(e&&e.name!=='AbortError'){$('shareMsg').className='msg err';$('shareMsg').textContent='Teilen geht hier nicht. Bitte „Bild speichern“ nutzen oder lange auf das Bild drücken.'}}
 };
 $('saveImg').onclick=async()=>{
@@ -1475,7 +1868,7 @@ $('saveImg').onclick=async()=>{
     setTimeout(()=>URL.revokeObjectURL(a.href),4000);msg.className='msg ok';msg.textContent='Bild wird gespeichert.';
   }catch(e){if(e?.code==='declined')return;msg.className='msg err';msg.textContent='Speichern hat nicht geklappt. Bitte lange auf das Bild drücken.'}
 };
-$('shareClose').onclick=()=>{$('shareView').hidden=true};
+$('shareClose').onclick=closeShare;
 
 
 /* ---------- Chargen speichern ---------- */
@@ -1492,6 +1885,15 @@ async function reportData(){
   while(d.length>200000&&q>0.35){q-=0.1;d=c.toDataURL('image/jpeg',q)}
   return d;
 }
+// Kleines Foto (ohne Markierungen) für das Saatmengen-Bild: Streifen 3:1 aus dem gezählten Bereich, ~30 KB
+function makeThumb(){
+  try{const b=countedBox(),bw=b.x1-b.x0,bh=b.y1-b.y0,W=720,H=240;
+    let sw=bw,sh=bw/3;if(sh>bh){sh=bh;sw=bh*3}
+    const sx=Math.max(0,b.x0+(bw-sw)/2),sy=Math.max(0,b.y0+(bh-sh)/2);
+    const c=document.createElement('canvas');c.width=W;c.height=H;c.getContext('2d').drawImage(cv,sx,sy,Math.min(sw,S.w-sx),Math.min(sh,S.h-sy),0,0,W,H);
+    let q=0.75,d=c.toDataURL('image/jpeg',q);while(d.length>40000&&q>0.35){q-=0.1;d=c.toDataURL('image/jpeg',q)}
+    return d}catch(e){return null}
+}
 function nextProbe(v){const m=String(v).match(/^(.*?)(\d+)\s*$/);return m?m[1]+(+m[2]+1):(v?v+' 2':'Probe 2')}
 $('saveBtn').onclick=async()=>{
   const msg=$('saveMsg');msg.className='msg';msg.textContent='';
@@ -1503,20 +1905,114 @@ $('saveBtn').onclick=async()=>{
   const c=S.counts;
   try{
     $('saveBtn').disabled=true;
-    const img=await reportData();
-    await col.add({kultur,sorte,charge,probe,count:currentN(),basis:S.basis,small:c.small,all:c.all,clump:c.clump,plus:c.plus,minus:c.minus,classes:c.classes,roi:!!S.roi,
+    const img=await reportData(),thumb=makeThumb();
+    await col.add({kultur,sorte,charge,probe,count:currentN(),basis:S.basis,ctrl:S.basis==='full'?(S.ctrl&&S.ctrl.done?(S.ctrl.ok?'ok':'abweichung'):'nein'):null,lowRef:!!S.lowRef,small:c.small,all:c.all,clump:c.clump,plus:c.plus,minus:c.minus,classes:c.classes,roi:!!S.roi,
       weight:t.wt,tkg:Math.round(t.tkg*100)/100,created:Date.now(),
-      settings:{sens:+$('sens').value,sep:+$('sep').value,small:+$('small').value,cls:S.cls,cmode:S.cmode},img});
-    toast(`<b>Gespeichert:</b> ${esc(kultur)}${sorte?' · '+esc(sorte):''}${probe?' · '+esc(probe):''}, TKG ${fmtG(t.tkg)} g.<br>`+
-      (store==='claude'?'Liegt in deinem Claude-Konto. Zum Weitergeben „Als Bild“ nutzen.'
-        :'Nur in diesem Browser gespeichert. Beim Löschen der Browserdaten geht es verloren – sichere wichtige Ergebnisse mit „Als Bild“.'),6500);
-    $('probe').value=nextProbe(probe);S.saved=true;
+      settings:{sens:sensVal(),sep:sepVal(),small:+$('small').value,cls:S.cls,cmode:S.cmode},img,thumb});
+    S.saveSig=saveSig();$('probe').value=nextProbe(probe);S.saved=true;
   }catch(err){msg.className='msg err';msg.textContent=err?.code==='quota_exceeded'?'Speicher voll. Bitte alte Proben löschen.':'Speichern hat nicht geklappt. Bitte noch einmal versuchen.'}
-  finally{$('saveBtn').disabled=false}
+  finally{updSaveBtn()}
 };
+// Was eine Probe ausmacht: dasselbe noch einmal speichern geht nicht (Knopf zeigt „Gespeichert“), jede Änderung gibt ihn wieder frei.
+// Die Probennummer zählt nicht mit – sie springt nach dem Speichern ja selbst weiter.
+function saveSig(){return [imgSeq,$('weight').value.trim(),$('kultur').value.trim(),$('sorte').value.trim(),$('charge').value.trim(),S.basis,S.counts?currentN():'',S.ctrl&&S.ctrl.done?1:0].join('|')}
+function updSaveBtn(){const b=$('saveBtn'),done=!!S.saveSig&&S.saveSig===saveSig();
+  b.disabled=done;b.classList.toggle('saved',done);b.textContent=done?'✓ Gespeichert':'Speichern'}
+['weight','kultur','sorte','charge'].forEach(id=>$(id).addEventListener('input',updSaveBtn));
 let savedById=new Map();
+/* ---------- Saatstärke je Charge ---------- */
+// kg/ha = Körner je m² × TKG (g) ÷ Keimfähigkeit (%) × (1 + Zuschlag %). Werte je Charge nur auf diesem Gerät gemerkt.
+const openSeed=new Set();
+const numDE=v=>{const n=parseFloat(String(v).replace(/\s/g,'').replace(',','.'));return isFinite(n)?n:NaN};
+const fmtN=(n,d)=>n.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});
+// Ø TKG einer Charge: Gesamtgewicht ÷ Gesamtkörner (große Proben zählen mehr – wie alles auf einmal gezählt und gewogen)
+function groupTKG(items){const ok=items.every(i=>i.weight>0&&i.count>0);
+  return ok?items.reduce((a,i)=>a+i.weight,0)/items.reduce((a,i)=>a+i.count,0)*1000:items.reduce((a,i)=>a+i.tkg,0)/items.length}
+function seedRate(v,mean){const tkg=numDE(v.tkg??fmtS(mean)),kpm=numDE(v.kpm),kf=numDE(v.kf??'95'),zu=numDE(v.zu??'0')||0;
+  return tkg>0&&kpm>0&&kf>0&&kf<=100?{kgha:kpm*tkg/kf*(1+zu/100),tkg,kpm,kf,zu}:null}
+function seedGet(key){try{return JSON.parse(localStorage.getItem('tally_seed')||'{}')[key]||{}}catch(e){return {}}}
+function seedSet(key,v){try{const all=JSON.parse(localStorage.getItem('tally_seed')||'{}');all[key]=v;localStorage.setItem('tally_seed',JSON.stringify(all))}catch(e){}}
+function seedUI(key,mean){
+  if(!openSeed.has(key))return `<button type="button" class="seedbtn" data-key="${esc(key)}">Saatmenge berechnen</button>`;
+  const v=seedGet(key),f=(id,lbl,val,unit,ph)=>`<label><span>${lbl}</span><span class="unit"><input class="mono" inputmode="decimal" autocomplete="off" data-seed="${id}" value="${esc(val??'')}" placeholder="${ph}"><i>${unit}</i></span></label>`;
+  return `<div class="seed" data-key="${esc(key)}" data-mean="${esc(fmtS(mean))}">
+    <div class="seedhead"><b>Saatmenge</b><button type="button" class="seedbtn x" data-key="${esc(key)}" aria-label="Saatmenge schließen">Schließen</button></div>
+    <div class="seedgrid">
+      ${f('tkg','TKG',v.tkg??fmtS(mean),'g','')}
+      ${f('kpm','Saatstärke (Körner/m²)',v.kpm,'','z. B. 350')}
+      ${f('kf','Keimfähigkeit',v.kf??'95','%','')}
+      ${f('zu','Zuschlag',v.zu??'0','%','Überlappung, Verluste')}
+    </div>
+    <div class="seedout" aria-live="polite"></div>
+  </div>`;
+}
+function seedCalc(box){
+  const v={};box.querySelectorAll('[data-seed]').forEach(i=>v[i.dataset.seed]=i.value);
+  const r=seedRate(v,numDE(box.dataset.mean)),out=box.querySelector('.seedout'),hd=box.closest('.group')?.querySelector('.grate');
+  if(hd){hd.textContent=r?fmtS(r.kgha)+' kg/ha':hd.dataset.tkg;hd.classList.toggle('tk',!r)}
+  if(!r){out.innerHTML='<span class="muted">Körner je m² eintragen.</span>';return}
+  out.innerHTML=`<span class="big">${fmtS(r.kgha)}</span> <span>kg/ha</span><button type="button" class="seedshare primary" data-key="${esc(box.dataset.key)}">Saatmenge teilen</button>`;
+}
+function seedAll(){document.querySelectorAll('.seed').forEach(seedCalc)}
 function dataUrlBlob(d){const [h,b]=d.split(',');const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
   return new Blob([u],{type:(h.match(/data:([^;]+)/)||[])[1]||'image/jpeg'})}
+function loadImg(src){return new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src})}
+// Saatkarte: Saatstärke einer Charge als Bild zum Teilen
+async function makeSeedCard(key){
+  try{await document.fonts.ready}catch(e){}
+  const items=[...savedById.values()].filter(v=>[v.kultur||'Ohne Kultur',v.sorte||'',v.charge||''].join('|')===key).sort((a,b)=>b.created-a.created);
+  if(!items.length)return null;
+  const n=items.length,tk=items.map(i=>i.tkg),mean=groupTKG(items),R=seedRate(seedGet(key),mean);
+  if(!R)return null;
+  const {kgha,tkg,kpm,kf,zu}=R;
+  const T=x=>getComputedStyle(document.documentElement).getPropertyValue(x).trim();
+  const W=1080,P=48,dark=T('--stage'),gold=T('--grain'),BG=T('--bg'),INK=T('--ink'),MUT=T('--muted'),LINE=T('--line');
+  const th=items.find(i=>i.thumb),photo=th?await loadImg(th.thumb):null,ph=photo?360:0;
+  const it=items[0],rows=[],title=[it.sorte||it.kultur,it.charge].filter(Boolean).join(' · ');
+  const own=fmtS(tkg)!==fmtS(mean);
+  rows.push(['TKG',fmtS(tkg)+' g'+(own?' (eingetragen)':` (Ø aus ${n} ${n===1?'Probe':'Proben'})`)]);
+  if(own)rows.push(['Ø TKG der Proben',fmtG(mean)+' g']);
+  if(n>1)rows.push(['Spannweite',fmtG(Math.min(...tk))+'–'+fmtG(Math.max(...tk))+' g']);
+  rows.push(['Saatstärke',fmtN(kpm,0)+' Körner/m²']);
+  rows.push(['Keimfähigkeit',fmtN(kf,kf%1?1:0)+' %']);
+  rows.push(['Zuschlag',fmtN(zu,zu%1?1:0)+' %']);
+  const date=new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const H=150+ph+P+230+rows.length*62+P+170;
+  const out=document.createElement('canvas');out.width=W;out.height=Math.round(H);const g=out.getContext('2d');
+  g.fillStyle=BG;g.fillRect(0,0,W,H);
+  g.fillStyle=dark;g.fillRect(0,0,W,150);
+  g.textBaseline='middle';g.font='800 64px "Bricolage Grotesque", system-ui, sans-serif';
+  g.fillStyle='#fff';g.fillText('tal',P,78);const kw=g.measureText('tal').width;g.fillStyle=gold;g.fillText('ly',P+kw,78);
+  g.font='500 30px "JetBrains Mono", monospace';g.fillStyle='#b9c0bb';g.textAlign='right';g.fillText(date,W-P,80);g.textAlign='left';
+  if(photo)g.drawImage(photo,0,150,W,ph);
+  let y=150+ph+P;
+  g.fillStyle=MUT;g.font='700 26px "Atkinson Hyperlegible", system-ui, sans-serif';g.fillText('SAATMENGE',P,y+20);
+  g.fillStyle=INK;g.font='700 120px "JetBrains Mono", monospace';const num=fmtS(kgha);g.fillText(num,P,y+110);
+  const nw=g.measureText(num).width;g.font='800 48px "Atkinson Hyperlegible", system-ui, sans-serif';g.fillText(' kg/ha',P+nw,y+122);
+  // rechts: Kultur so groß wie „SAATMENGE“, darunter fett Sorte · Lagerplatz (Wunsch des Inhabers)
+  const left=P+nw+g.measureText(' kg/ha').width+40,room=W-P-left;
+  const fit=(txt,font,max)=>{g.font=font;let t=txt;while(g.measureText(t).width>max&&t.length>4)t=t.slice(0,-2);return t===txt?t:t+'…'};
+  g.textAlign='right';
+  if(it.kultur){g.fillStyle=MUT;g.fillText(fit(it.kultur.toUpperCase(),'700 26px "Atkinson Hyperlegible", system-ui, sans-serif',W-2*P-200),W-P,y+20)}
+  const st=[it.sorte,it.charge].filter(Boolean); // Sorte und Lagerplatz untereinander, gleich groß
+  if(st.length){let fs=46;const F=()=>`800 ${fs}px "Bricolage Grotesque", system-ui, sans-serif`;g.font=F();
+    while(fs>28&&Math.max(...st.map(t=>g.measureText(t).width))>room){fs-=2;g.font=F()}
+    g.fillStyle=INK;const y0=st.length>1?y+72:y+100;st.forEach((t,i)=>g.fillText(fit(t,F(),room),W-P,y0+i*(fs+8)))}
+  g.textAlign='left';
+  y+=200;g.fillStyle=gold;g.fillRect(P,y,W-2*P,4);y+=30;
+  for(const [k,val] of rows){
+    g.fillStyle=MUT;g.font='400 30px "Atkinson Hyperlegible", system-ui, sans-serif';g.fillText(k,P,y+20);
+    g.fillStyle=INK;g.font='700 32px "Atkinson Hyperlegible", system-ui, sans-serif';g.textAlign='right';
+    let txt=val;while(g.measureText(txt).width>W-2*P-330&&txt.length>4)txt=txt.slice(0,-2);if(txt!==val)txt+='…';
+    g.fillText(txt,W-P,y+20);g.textAlign='left';
+    g.fillStyle=LINE;g.fillRect(P,y+46,W-2*P,2);y+=62;
+  }
+  y+=P-20;g.fillStyle=dark;g.fillRect(0,y,W,H-y);
+  drawFoot(g,W,y,gold);
+  const c=document.createElement('canvas');c.width=720;c.height=Math.round(H*720/W);c.getContext('2d').drawImage(out,0,0,c.width,c.height);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.85));
+  return {blob,name:fileName(['Saatmenge',it.sorte||it.kultur,it.charge]),text:`${title}: ${fmtS(kgha)} kg/ha – erstellt mit tally: `+HOME_URL};
+}
 const openGroups=new Set();let lastDocs=[];
 function renderSaved(docs){
   lastDocs=docs;
@@ -1530,32 +2026,44 @@ function renderSaved(docs){
     const n=g.items.length,open=openGroups.has(g.key);
     let body='';
     if(open){
-      const tk=g.items.map(i=>i.tkg),mean=tk.reduce((a,b)=>a+b,0)/n;
-      const sd=n>1?Math.sqrt(tk.reduce((a,b)=>a+(b-mean)**2,0)/(n-1)):0;
+      const tk=g.items.map(i=>i.tkg),mean=groupTKG(g.items),am=tk.reduce((a,b)=>a+b,0)/n;
+      const sd=n>1?Math.sqrt(tk.reduce((a,b)=>a+(b-am)**2,0)/(n-1)):0;
       const sm=g.items.filter(i=>i.all),kk=sm.length?sm.reduce((a,i)=>a+i.small/i.all,0)/sm.length:null;
       const items=g.items.sort((a,b)=>a.created-b.created).map(i=>`
-        <div class="prow">
-          <div class="meta"><b>${fmtG(i.tkg)} g</b> · ${esc(i.probe||'Probe')} · ${fmt(i.count)} Körner<br>${new Date(i.created).toLocaleDateString('de-DE')} · ${(i.weight||0).toLocaleString('de-DE')} g ${i.basis==='full'?'ohne':'mit'} Kleinkorn</div>
-          ${i.img?`<button type="button" class="img" data-id="${esc(i.id)}">Teilen</button>`:'<span></span>'}
+        <div class="prow${i.img?' open':''}" data-id="${esc(i.id)}"${i.img?' role="button" tabindex="0" aria-label="Ergebnisbild ansehen"':''}>
+          <div class="meta"><b>${fmtG(i.tkg)} g</b> · ${esc(i.probe||'Probe')} · ${fmt(i.count)} Körner<br>${new Date(i.created).toLocaleDateString('de-DE')} · ${(i.weight||0).toLocaleString('de-DE')} g ${i.basis==='full'?'ohne':'mit'} Kleinkorn${i.ctrl==='ok'?' · geprüft':i.ctrl==='abweichung'?' · Abweichung':i.ctrl==='nein'?' · ungeprüft':''}</div>
+          ${i.img?'<span class="chev" aria-hidden="true">›</span>':'<span></span>'}
           <button class="del" type="button" data-id="${esc(i.id)}">Löschen</button>
         </div>`).join('');
-      body=`<div class="sumrow"><span>Ø TKG <b>${fmtG(mean)} g</b></span>${n>1?`<span>${fmtG(Math.min(...tk))}–${fmtG(Math.max(...tk))} g</span><span>± ${fmtG(sd)} g</span>`:''}${kk!==null?`<span>Kleinkorn Ø ${(kk*100).toLocaleString('de-DE',{maximumFractionDigits:1})} %</span>`:''}</div>${items}`;
+      body=`<div class="sumrow"><span>Ø TKG <b>${fmtG(mean)} g</b></span>${n>1?`<span>${fmtG(Math.min(...tk))}–${fmtG(Math.max(...tk))} g</span><span>± ${fmtG(sd)} g</span>`:''}${kk!==null?`<span>Kleinkorn Ø ${(kk*100).toLocaleString('de-DE',{maximumFractionDigits:1})} %</span>`:''}</div>${seedUI(g.key,mean)}${items}`;
     }
+    // Kopf: was der Landwirt sucht – Sorte · Charge und die Saatmenge; Kultur und Probenzahl klein darunter
+    const rate=seedRate(seedGet(g.key),groupTKG(g.items)),title=[g.sorte||g.kultur,g.charge].filter(Boolean).join(' · ');
+    const sub=[g.sorte?g.kultur:'',`${n} ${n===1?'Probe':'Proben'}`].filter(Boolean).join(' · '),tkgTxt='TKG '+fmtG(groupTKG(g.items))+' g';
     return `<div class="group${open?' open':''}"><button type="button" class="ghead" data-key="${esc(g.key)}" aria-expanded="${open}">
-      <span>${esc(g.kultur)}${g.sorte?' · '+esc(g.sorte):''}${g.charge?' · '+esc(g.charge):''}</span><em>${n} ${n===1?'Probe':'Proben'}</em></button>${body}</div>`;
+      <span class="gt"><b>${esc(title)}</b><small>${esc(sub)}</small></span><span class="grate${rate?'':' tk'}" data-tkg="${esc(tkgTxt)}">${rate?fmtS(rate.kgha)+' kg/ha':esc(tkgTxt)}</span><em></em></button>${body}</div>`;
   }).join('');
   box.innerHTML=`<div style="display:flex;flex-direction:column;gap:10px">${html}</div>`;
+  seedAll();
 }
+$('savedList').addEventListener('input',e=>{const inp=e.target.closest('[data-seed]');if(!inp)return;const box=inp.closest('.seed');
+  const v={};box.querySelectorAll('[data-seed]').forEach(i=>v[i.dataset.seed]=i.value);if(v.tkg===box.dataset.mean)delete v.tkg; // vorbelegtes Ø-TKG nicht festschreiben
+  seedSet(box.dataset.key,v);seedCalc(box)});
 $('savedList').addEventListener('click',async e=>{
+  const sb=e.target.closest('.seedbtn');
+  if(sb){const k=sb.dataset.key;openSeed.has(k)?openSeed.delete(k):openSeed.add(k);renderSaved(lastDocs);return}
+  const ss=e.target.closest('.seedshare');
+  if(ss){ss.disabled=true;try{const r=await makeSeedCard(ss.dataset.key);if(r)openShare(r.blob,r.name,r.text)}finally{ss.disabled=false}return}
   const gh=e.target.closest('.ghead');
   if(gh){const k=gh.dataset.key;openGroups.has(k)?openGroups.delete(k):openGroups.add(k);renderSaved(lastDocs);return}
-  const im=e.target.closest('.img');
+  const im=!e.target.closest('.del')&&e.target.closest('.prow.open');
   if(im){const v=savedById.get(im.dataset.id);if(!v?.img)return;const blob=dataUrlBlob(v.img);
     openShare(blob,fileName([v.kultur,v.sorte,v.charge,v.probe]));return}
   const b=e.target.closest('.del');if(!b||!col)return;
   if(!b.classList.contains('arm')){b.classList.add('arm');b.textContent='Wirklich?';setTimeout(()=>{b.classList.remove('arm');b.textContent='Löschen'},3000);return}
   b.disabled=true;try{await col.doc(b.dataset.id).delete()}catch(err){b.disabled=false;b.textContent='Fehler'}
 });
+$('savedList').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('prow')){e.preventDefault();e.target.click()}});
 // Eigenständig (z. B. GitHub Pages): Proben in IndexedDB dieses Browsers
 function idbCol(){return new Promise(res=>{
   let rq;try{rq=indexedDB.open('tally',1)}catch(e){return res(null)}
@@ -1587,7 +2095,7 @@ async function useLocal(){col=await idbCol();store='browser';
     if(!db||!user)return useLocal();
     const uid=await user.id();
     col=db.collection('data/users/'+uid);store='claude';
-    $('storeNote').textContent='In dieser Claude-Version liegen die Proben in deinem Claude-Konto. In der freien Web-Version nur im Browser. Wichtige Ergebnisse über „Teilen“ sichern.';
+    $('storeNote').textContent='In dieser Claude-Version liegen die Proben in deinem Claude-Konto. In der freien Web-Version nur im Browser. Wichtige Ergebnisse: Probe antippen und das Ergebnisbild teilen.';
     col.orderBy('created','desc').limit(500).onSnapshot(s=>renderSaved(s.docs),
       ()=>{$('savedList').innerHTML='<p class="empty">Gespeicherte Proben konnten nicht geladen werden.</p>'});
   }catch(e){useLocal()}
@@ -1622,6 +2130,7 @@ function sample(){
   const nSmall=pts.filter(p=>p.sz<1).length;
   setImage(c,`Beispiel: ${pts.length} Körner, ${nSmall} Kleinkorn`);
 }
+document.querySelectorAll('.vnum').forEach(e=>e.textContent=VERSION);
 $('sample').onclick=sample;
 sample();
 })();
